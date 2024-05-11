@@ -600,15 +600,15 @@ bool compare_wakeup_tick(const struct list_elem *a, const struct list_elem *b, v
 }
 
 void thread_sleep(int64_t ticks) {  // insert thread to the sleep queue
-    /*
-        if the current thread is not idle thread,
-        change the state of the caller thread to BLOCKED,
-        store the local tick to wake up,
-        update the global tick if necessary     ??
-        and call schedule()
+    /*  project1 - alarm clock
+            if the current thread is not idle thread,
+            change the state of the caller thread to BLOCKED,
+            store the local tick to wake up,
+            update the global tick if necessary     ??
+            and call schedule()
      */
     /*
-     * when you manipulate thread list, disabled interrupt!
+       when you manipulate thread list, disabled interrupt!
      */
     struct thread *curr = thread_current();
 

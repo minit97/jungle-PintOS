@@ -136,12 +136,12 @@ timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;
 	thread_tick ();     // update the cpu usage for running process
 
-    /*
-     * code to add:
-     *  check sleep list and the global tick
-     *  find any threads to wake up,
-     *  move them to the ready list if necessarry.
-     *  update the global tick
+    /* project1 - alarm clock
+        code to add:
+            check sleep list and the global tick
+            find any threads to wake up,
+            move them to the ready list if necessarry.
+            update the global tick
      */
     // global_ticks_for_wakeup check and update global tick
     thread_wakeup(ticks);
