@@ -19,6 +19,7 @@
 
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
+static int64_t global_ticks_for_wakeup;
 
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
@@ -72,7 +73,7 @@ timer_calibrate (void) {
 
 /* Returns the number of timer ticks since the OS booted. */
 int64_t
-timer_ticks (void) {
+timer_ticks (void) {            //* return this value of the current tick
 	enum intr_level old_level = intr_disable ();
 	int64_t t = ticks;
 	intr_set_level (old_level);
@@ -83,18 +84,24 @@ timer_ticks (void) {
 /* Returns the number of timer ticks elapsed since THEN, which
    should be a value once returned by timer_ticks(). */
 int64_t
-timer_elapsed (int64_t then) {
+timer_elapsed (int64_t then) {      //* return how many ticks have passed since the start
 	return timer_ticks () - then;
 }
 
 /* Suspends execution for approximately TICKS timer ticks. */
 void
-timer_sleep (int64_t ticks) {
-	int64_t start = timer_ticks ();
+timer_sleep (int64_t ticks) {       //* Call the function that insert thread to the sleep queue
+    //todo start 부분 수정해야함
+	int64_t start = timer_ticks ();               // 현재 tick 반환
 
 	ASSERT (intr_get_level () == INTR_ON);
-	while (timer_elapsed (start) < ticks)
-		thread_yield ();
+//	while (timer_elapsed (start) < ticks)
+//		thread_yield ();
+
+    if (timer_elapsed(start) < ticks) {     // 경과된 틱 수 < 매개변수 틱
+        // global_ticks_for_wakeup 업데이트
+        thread_sleep(start + ticks);
+    }
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -124,8 +131,20 @@ timer_print_stats (void) {
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED) {
+    // At every tick, check whether some thread must wake up from sleep queue and call wake up function
+    // 체크할 때마다 일부 스레드가 sleep 큐에서 꺠어나야 하는지 확인하고 wake up 기능호출
 	ticks++;
-	thread_tick ();
+	thread_tick ();     // update the cpu usage for running process
+
+    /*
+     * code to add:
+     *  check sleep list and the global tick
+     *  find any threads to wake up,
+     *  move them to the ready list if necessarry.
+     *  update the global tick
+     */
+    // global_ticks_for_wakeup check and update global tick
+    thread_wakeup(ticks);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

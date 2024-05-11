@@ -27,9 +27,10 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
+static struct list sleep_list;  // 추가
 
 /* Idle thread. */
-static struct thread *idle_thread;
+static struct thread *idle_thread;  // 작업할 thread가 없는데 CPU를 돌리기 위해 사용
 
 /* Initial thread, the thread running init.c:main(). */
 static struct thread *initial_thread;
@@ -93,7 +94,7 @@ static uint64_t gdt[3] = { 0, 0x00af9a000000ffff, 0x00cf92000000ffff };
    It is not safe to call thread_current() until this function
    finishes. */
 void
-thread_init (void) {
+thread_init (void) {    // Add the code to initialize the sleep queue data structure
 	ASSERT (intr_get_level () == INTR_OFF);
 
 	/* Reload the temporal gdt for the kernel
@@ -108,6 +109,7 @@ thread_init (void) {
 	/* Init the globla thread context */
 	lock_init (&tid_lock);
 	list_init (&ready_list);
+	list_init (&sleep_list);
 	list_init (&destruction_req);
 
 	/* Set up a thread structure for the running thread. */
@@ -295,17 +297,18 @@ thread_exit (void) {
 /* Yields the CPU.  The current thread is not put to sleep and
    may be scheduled again immediately at the scheduler's whim. */
 void
-thread_yield (void) {
-	struct thread *curr = thread_current ();
+thread_yield (void) {                                   // yield the cpu and insert thread to ready_list
+	struct thread *curr = thread_current ();            // return thr current thread
 	enum intr_level old_level;
 
 	ASSERT (!intr_context ());
 
-	old_level = intr_disable ();
+	old_level = intr_disable ();                        //disable the interrupt and previous interrupt state
 	if (curr != idle_thread)
-		list_push_back (&ready_list, &curr->elem);
-	do_schedule (THREAD_READY);
-	intr_set_level (old_level);
+		list_push_back (&ready_list, &curr->elem);      //insert the given entry to the last of list
+	do_schedule (THREAD_READY);                     //do context switch
+	intr_set_level (old_level);                         //set a state of interrupt to state passed to parameter
+                                                        //and return previous interrupt state
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
@@ -587,4 +590,59 @@ allocate_tid (void) {
 	lock_release (&tid_lock);
 
 	return tid;
+}
+
+bool compare_wakeup_tick(const struct list_elem *a, const struct list_elem *b, void *aux) {
+    struct thread *thread_a = list_entry(a, struct thread, elem);
+    struct thread *thread_b = list_entry(b, struct thread, elem);
+
+    return thread_a->wakeup_tick < thread_b->wakeup_tick;
+}
+
+void thread_sleep(int64_t ticks) {  // insert thread to the sleep queue
+    /*
+        if the current thread is not idle thread,
+        change the state of the caller thread to BLOCKED,
+        store the local tick to wake up,
+        update the global tick if necessary     ??
+        and call schedule()
+     */
+    /*
+     * when you manipulate thread list, disabled interrupt!
+     */
+    struct thread *curr = thread_current();
+
+    if(curr != idle_thread) {
+        enum intr_level old_level;
+        old_level = intr_disable();
+
+        curr->status = THREAD_BLOCKED;
+        curr->wakeup_tick = ticks;
+        list_insert_ordered(&sleep_list, &curr->elem, compare_wakeup_tick, NULL);
+
+        schedule();
+        intr_set_level(old_level);
+    }
+}
+
+void thread_wakeup(int64_t curr_ticks) {
+    enum intr_level old_level;
+    old_level = intr_disable();
+
+    struct list_elem *temp_elem = list_begin(&sleep_list);
+    if (temp_elem != list_end (&sleep_list)) {
+        struct list_elem *e;
+
+        for (e = temp_elem; e != list_end (&sleep_list); e = list_next (e)) {
+            struct thread *temp_thread = list_entry(e, struct thread, elem);
+            if (temp_thread->wakeup_tick <= curr_ticks) {
+                temp_thread->status = THREAD_READY;
+                list_push_back(&ready_list, list_pop_front(&sleep_list));
+            } else {
+                break;
+            }
+        }
+    }
+
+    intr_set_level(old_level);
 }
