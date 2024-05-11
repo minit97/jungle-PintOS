@@ -28,6 +28,8 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
+static struct list sleep_list;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -48,6 +50,7 @@ static long long user_ticks;    /* # of timer ticks in user programs. */
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
+static unsigned global_tick;
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -587,4 +590,41 @@ allocate_tid (void) {
 	lock_release (&tid_lock);
 
 	return tid;
+}
+
+void update_global_tick(int64_t ticks){
+    if(global_tick == NULL )
+        global_tick = ticks;
+
+    if(global_tick > ticks)
+        global_tick = ticks;
+}
+
+void thread_sleep(int64_t ticks){
+    struct thread *curr = thread_current();
+    enum intr_level old_level;
+
+    old_level = intr_disable();
+
+    ASSERT (thread_current()->status == THREAD_RUNNING);
+
+    if(curr != idle_thread) {
+        curr ->wakeup_tick = ticks;
+        list_push_back (&sleep_list, &curr->elem);
+        update_global_tick(&curr->wakeup_tick);
+    }
+    do_schedule (THREAD_BLOCKED);
+    intr_set_level(old_level);
+}
+
+
+bool compare_value (const struct list_elem *a,
+                             const struct list_elem *b,
+                             void *aux){
+
+}
+
+
+void thread_awake(){
+    list_sort(&sleep_list, compare_value, NULL);
 }
