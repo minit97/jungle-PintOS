@@ -43,6 +43,7 @@
    thread, if any). */
 void
 sema_init (struct semaphore *sema, unsigned value) {
+    // project01[scheduling] - Initialize semaphore to the given value
 	ASSERT (sema != NULL);
 
 	sema->value = value;
@@ -59,6 +60,7 @@ sema_init (struct semaphore *sema, unsigned value) {
    sema_down function. */
 void
 sema_down (struct semaphore *sema) {
+    // project01[scheduling] - Request the semaphore. If it acquired the semaphore, decrease the value by 1
 	enum intr_level old_level;
 
 	ASSERT (sema != NULL);
@@ -66,7 +68,7 @@ sema_down (struct semaphore *sema) {
 
 	old_level = intr_disable ();
 	while (sema->value == 0) {
-		list_push_back (&sema->waiters, &thread_current ()->elem);
+        list_insert_ordered(&sema->waiters, &thread_current ()->elem, compare_priority, NULL);
 		thread_block ();
 	}
 	sema->value--;
@@ -104,15 +106,18 @@ sema_try_down (struct semaphore *sema) {
    This function may be called from an interrupt handler. */
 void
 sema_up (struct semaphore *sema) {
-	enum intr_level old_level;
+    // project01[scheduling] - Release the semaphore and increase the value by 1
 
 	ASSERT (sema != NULL);
 
+    enum intr_level old_level;
 	old_level = intr_disable ();
+
 	if (!list_empty (&sema->waiters))
-		thread_unblock (list_entry (list_pop_front (&sema->waiters),
-					struct thread, elem));
+        list_sort(&sema->waiters, compare_priority, NULL);
+		thread_unblock (list_entry (list_pop_front (&sema->waiters), struct thread, elem));
 	sema->value++;
+
 	intr_set_level (old_level);
 }
 
@@ -168,6 +173,8 @@ sema_test_helper (void *sema_) {
    instead of a lock. */
 void
 lock_init (struct lock *lock) {
+    // project01[scheduling] - Initialize the lock data structure
+
 	ASSERT (lock != NULL);
 
 	lock->holder = NULL;
@@ -184,6 +191,12 @@ lock_init (struct lock *lock) {
    we need to sleep. */
 void
 lock_acquire (struct lock *lock) {
+    /*
+     * project01[scheduling] - Request the lock
+     *      If the lock is not available, store address of the lock.
+     *      Store the current priority and maintain donated threads on list(multiple donation)
+     *      Donate priority
+    */
 	ASSERT (lock != NULL);
 	ASSERT (!intr_context ());
 	ASSERT (!lock_held_by_current_thread (lock));
@@ -219,6 +232,8 @@ lock_try_acquire (struct lock *lock) {
    handler. */
 void
 lock_release (struct lock *lock) {
+    // project01[scheduling] - Release the lock
+
 	ASSERT (lock != NULL);
 	ASSERT (lock_held_by_current_thread (lock));
 
@@ -247,6 +262,8 @@ struct semaphore_elem {
    code to receive the signal and act upon it. */
 void
 cond_init (struct condition *cond) {
+    // project01[scheduling] - Initialize the condition variable data structure
+
 	ASSERT (cond != NULL);
 
 	list_init (&cond->waiters);
@@ -274,6 +291,8 @@ cond_init (struct condition *cond) {
    we need to sleep. */
 void
 cond_wait (struct condition *cond, struct lock *lock) {
+    // project01[scheduling] - Wait for signal by the condition variable
+
 	struct semaphore_elem waiter;
 
 	ASSERT (cond != NULL);
@@ -282,7 +301,7 @@ cond_wait (struct condition *cond, struct lock *lock) {
 	ASSERT (lock_held_by_current_thread (lock));
 
 	sema_init (&waiter.semaphore, 0);
-	list_push_back (&cond->waiters, &waiter.elem);
+    list_insert_ordered(&cond->waiters, &waiter.elem, compare_priority, NULL);
 	lock_release (lock);
 	sema_down (&waiter.semaphore);
 	lock_acquire (lock);
@@ -297,14 +316,17 @@ cond_wait (struct condition *cond, struct lock *lock) {
    interrupt handler. */
 void
 cond_signal (struct condition *cond, struct lock *lock UNUSED) {
+    // project01[scheduling] - Send a signal to thread of the highest priority waiting in condition variable.
+
 	ASSERT (cond != NULL);
 	ASSERT (lock != NULL);
 	ASSERT (!intr_context ());
 	ASSERT (lock_held_by_current_thread (lock));
 
 	if (!list_empty (&cond->waiters))
-		sema_up (&list_entry (list_pop_front (&cond->waiters),
-					struct semaphore_elem, elem)->semaphore);
+        list_sort(&cond->waiters, compare_priority, NULL);
+		sema_up (&list_entry (list_pop_front (&cond->waiters), struct semaphore_elem, elem)->semaphore);
+
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by
@@ -315,6 +337,8 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED) {
    interrupt handler. */
 void
 cond_broadcast (struct condition *cond, struct lock *lock) {
+    // project01[scheduling] - Send a signal to all threads waiting in the condition variable.
+
 	ASSERT (cond != NULL);
 	ASSERT (lock != NULL);
 

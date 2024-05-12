@@ -146,4 +146,10 @@ void do_iret (struct intr_frame *tf);
 
 void thread_sleep(int64_t ticks);
 void thread_wakeup(int64_t ticks);
+int64_t get_global_ticks_for_wakeup();
+
+// sorting func
+bool compare_wakeup_tick(const struct list_elem *a, const struct list_elem *b, void *aux);
+bool compare_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
+
 #endif /* threads/thread.h */

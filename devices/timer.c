@@ -19,7 +19,7 @@
 
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
-static int64_t global_ticks_for_wakeup;
+
 
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
@@ -91,15 +91,13 @@ timer_elapsed (int64_t then) {      //* return how many ticks have passed since 
 /* Suspends execution for approximately TICKS timer ticks. */
 void
 timer_sleep (int64_t ticks) {       //* Call the function that insert thread to the sleep queue
-    //todo start 부분 수정해야함
-	int64_t start = timer_ticks ();               // 현재 tick 반환
+	int64_t start = timer_ticks ();
 
 	ASSERT (intr_get_level () == INTR_ON);
 //	while (timer_elapsed (start) < ticks)
 //		thread_yield ();
 
-    if (timer_elapsed(start) < ticks) {     // 경과된 틱 수 < 매개변수 틱
-        // global_ticks_for_wakeup 업데이트
+    if (timer_elapsed(start) < ticks) {
         thread_sleep(start + ticks);
     }
 }
@@ -132,19 +130,20 @@ timer_print_stats (void) {
 static void
 timer_interrupt (struct intr_frame *args UNUSED) {
     // At every tick, check whether some thread must wake up from sleep queue and call wake up function
-    // 체크할 때마다 일부 스레드가 sleep 큐에서 꺠어나야 하는지 확인하고 wake up 기능호출
 	ticks++;
 	thread_tick ();     // update the cpu usage for running process
 
-    /* project1 - alarm clock
+    /* project1[alarm clock]
         code to add:
             check sleep list and the global tick
             find any threads to wake up,
             move them to the ready list if necessarry.
             update the global tick
      */
-    // global_ticks_for_wakeup check and update global tick
-    thread_wakeup(ticks);
+    int64_t global_ticks = get_global_ticks_for_wakeup();
+    if(global_ticks <= ticks) {
+        thread_wakeup(ticks);
+    }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
