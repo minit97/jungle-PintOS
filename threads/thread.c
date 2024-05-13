@@ -331,7 +331,6 @@ thread_yield (void) {                                   // yield the cpu and ins
         list_insert_ordered(&ready_list, &curr->elem, compare_priority, NULL);        //insert the given entry to the last of list
 	do_schedule (THREAD_READY);                                                   //do context switch
 	intr_set_level (old_level);                                                         //set a state of interrupt to state passed to parameter
-                                                                                        //and return previous interrupt state
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY. */
@@ -339,7 +338,11 @@ void
 thread_set_priority (int new_priority) {
     // project1[scheduling] - set priorty of the current thread, Reorder the ready_list
 	thread_current ()->priority = new_priority;
-    list_sort(&ready_list, compare_priority, NULL);
+
+    int ready_priority = list_entry (list_front(&ready_list), struct thread, elem)->priority;
+    if (ready_priority > new_priority) {
+        thread_yield();
+    }
 }
 
 /* Returns the current thread's priority. */
@@ -664,6 +667,7 @@ void thread_wakeup(int64_t curr_ticks) {
 
     intr_set_level(old_level);
 }
+
 
 int64_t get_global_ticks_for_wakeup(void) {
     struct thread *temp_thread = list_entry(list_begin(&sleep_list), struct thread, elem);

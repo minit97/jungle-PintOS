@@ -90,8 +90,15 @@ struct thread {
 	tid_t tid;                          /* Thread identifier. */
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
-	int priority;                       /* Priority. */
+
+    // Alarm Clock
     int64_t wakeup_tick;                /* tick till wake up */
+
+    // Priority Scheduling
+	int priority;                       /* Priority. */
+    struct lock wait_on_lock;           /* lock that it waits for */
+    struct list donations;              /* list of Donors */
+
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
@@ -146,7 +153,7 @@ void do_iret (struct intr_frame *tf);
 
 void thread_sleep(int64_t ticks);
 void thread_wakeup(int64_t ticks);
-int64_t get_global_ticks_for_wakeup();
+int64_t get_global_ticks_for_wakeup(void);
 
 // sorting func
 bool compare_wakeup_tick(const struct list_elem *a, const struct list_elem *b, void *aux);
