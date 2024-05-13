@@ -67,10 +67,12 @@ sema_down (struct semaphore *sema) {
 	ASSERT (!intr_context ());
 
 	old_level = intr_disable ();
+
 	while (sema->value == 0) {
         list_insert_ordered(&sema->waiters, &thread_current ()->elem, compare_priority, NULL);
 		thread_block ();
 	}
+
     sema->value--;
 	intr_set_level (old_level);
 }
@@ -201,12 +203,17 @@ lock_acquire (struct lock *lock) {
 	ASSERT (lock != NULL);
 	ASSERT (!intr_context ());
 	ASSERT (!lock_held_by_current_thread (lock));
-    if (lock->holder != NULL) {
-        lock->holder->priority
-    }
 
-	sema_down (&lock->semaphore);
-	lock->holder = thread_current ();
+
+	sema_down (&lock->semaphore);           // 해당 lock에 대한 semaphore를 획득
+
+    struct thread *curr = thread_current ();
+    lock->holder = curr;                          // 해당 lock에 스레드 접근
+
+    int highest_priority = list_entry(list_max(&lock->semaphore.waiters, compare_priority, NULL), struct thread, elem)->priority;
+    if (highest_priority > curr->priority) {
+        curr->priority = highest_priority;
+    }
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -236,10 +243,16 @@ lock_try_acquire (struct lock *lock) {
    handler. */
 void
 lock_release (struct lock *lock) {
-    // project01[scheduling] - Release the lock
-
+    /* project01[scheduling] - Release the lock
+            When the lock is released, remove the thread that holds the lock on donation list and set priority properly
+     */
 	ASSERT (lock != NULL);
 	ASSERT (lock_held_by_current_thread (lock));
+
+    // 먼저 donations 에서 해제하는 lock을 기다리는 thread 삭제
+//    struct thread *origin_locked_thread = lock->holder;
+//    struct list *donation_list = &origin_locked_thread->donations;
+
 
 	lock->holder = NULL;
 	sema_up (&lock->semaphore);
@@ -349,4 +362,50 @@ cond_broadcast (struct condition *cond, struct lock *lock) {
 
 	while (!list_empty (&cond->waiters))
 		cond_signal (cond, lock);
+}
+
+void multiple_donation(struct lock *unlocked_lock) {
+    struct thread *origin_locked_thread = unlocked_lock->holder;
+
+    // 먼저 donations 에서 해제하는 lock을 기다리는 thread 삭제
+    struct list *donation_list = &origin_locked_thread->donations;
+
+    struct list_elem *temp_elem = list_begin(donation_list);
+    while (temp_elem != list_end(donation_list)) {
+        struct thread *temp_thread = list_entry(temp_elem, struct thread, elem);
+        if (temp_thread->wait_on_lock == unlocked_lock) {
+            temp_elem = list_remove(temp_elem);
+            break;
+        }
+        temp_elem = list_next(temp_elem);
+    }
+
+    // donations 에서의 최대 priority 추출
+    int highest_priority = list_max(donation_list, compare_priority, NULL);
+
+    // 해제할려는 lock의 기다리는 thread 를 찾고 wait_on_lock 연결해제 및 lock_holder를 가리키도록함
+    struct thread *new_locked_thread = list_entry(list_pop_front(&unlocked_lock->semaphore.waiters), struct thread, elem);
+    if (new_locked_thread != NULL) {
+        new_locked_thread->wait_on_lock = NULL;
+        unlocked_lock->holder = new_locked_thread;
+    }
+}
+
+void nested_donation(struct lock *wanted_lock, struct thread *curr) {
+    curr->wait_on_lock = wanted_lock;
+
+    struct lock *temp_lock = wanted_lock;
+    while(temp_lock != NULL) {
+        struct thread *next_thread = temp_lock->holder;
+        if (next_thread->priority < curr->priority) {       // 들어온 것만으로 체크를 하는데 이래도 될려나? -> 나중에 바꾸긴해야할듯
+            next_thread->priority = curr->priority;
+        }
+        temp_lock = &next_thread->wait_on_lock;
+    }
+}
+
+void priority_donation(struct lock *lock) {
+    struct list wait_list = lock->semaphore.waiters;
+    int highest_priority = list_entry(list_max(&wait_list, compare_priority, NULL) , struct thread, elem)->priority;
+    lock->holder->priority = highest_priority;
 }
