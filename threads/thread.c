@@ -226,8 +226,6 @@ thread_create (const char *name, int priority,
         thread_yield();
     }
 
-
-
 	return tid;
 }
 
@@ -265,6 +263,7 @@ thread_unblock (struct thread *t) {
 	ASSERT (t->status == THREAD_BLOCKED);
     list_insert_ordered(&ready_list, &t->elem, compare_priority, NULL);
 	t->status = THREAD_READY;
+
 	intr_set_level (old_level);
 }
 
@@ -337,7 +336,7 @@ thread_yield (void) {                                   // yield the cpu and ins
 void
 thread_set_priority (int new_priority) {
     // project1[scheduling] - set priorty of the current thread, Reorder the ready_list
-	thread_current ()->priority = new_priority;
+	thread_current()->priority = new_priority;
 
     int ready_priority = list_entry (list_max(&ready_list, compare_priority, NULL), struct thread, elem)->priority;
     if (ready_priority > new_priority) {
@@ -434,7 +433,6 @@ init_thread (struct thread *t, const char *name, int priority) {
      * project1[scheduling] : Point of updates
      *      Initialized data structure for priority donation
      */
-
 	ASSERT (t != NULL);
 	ASSERT (PRI_MIN <= priority && priority <= PRI_MAX);
 	ASSERT (name != NULL);
@@ -445,6 +443,10 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
 	t->priority = priority;
 	t->magic = THREAD_MAGIC;
+
+    // 초기화
+    t->wait_on_lock = NULL;
+    list_init (&t->donations);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should

@@ -210,10 +210,10 @@ lock_acquire (struct lock *lock) {
     struct thread *curr = thread_current ();
     lock->holder = curr;                          // 해당 lock에 스레드 접근
 
-    int highest_priority = list_entry(list_max(&lock->semaphore.waiters, compare_priority, NULL), struct thread, elem)->priority;
-    if (highest_priority > curr->priority) {
-        curr->priority = highest_priority;
-    }
+//    int highest_priority = list_entry(list_max(&lock->semaphore.waiters, compare_priority, NULL), struct thread, elem)->priority;
+//    if (highest_priority > curr->priority) {
+//        curr->priority = highest_priority;
+//    }
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
