@@ -21,10 +21,10 @@ test_priority_sema (void)
   ASSERT (!thread_mlfqs);
 
   sema_init (&sema, 0);
-  thread_set_priority (PRI_MIN);
-  for (i = 0; i < 10; i++) 
+  thread_set_priority (PRI_MIN);    // 0
+  for (i = 0; i < 10; i++)
     {
-      int priority = PRI_DEFAULT - (i + 3) % 10 - 1;
+      int priority = PRI_DEFAULT - (i + 3) % 10 - 1;    // 27 26 25 24 23 22 21 30 29 28
       char name[16];
       snprintf (name, sizeof name, "priority %d", priority);
       thread_create (name, priority, priority_sema_thread, NULL);
@@ -33,13 +33,13 @@ test_priority_sema (void)
   for (i = 0; i < 10; i++) 
     {
       sema_up (&sema);
-      msg ("Back in main thread."); 
+      msg ("Back in main thread.");
     }
 }
 
 static void
 priority_sema_thread (void *aux UNUSED) 
 {
-  sema_down (&sema);
+  sema_down (&sema);                            // 처음 들어온 27번이 yield()를 통해 schedule을 호출하지만 sema_down에서 block 상태가 되버린다.
   msg ("Thread %s woke up.", thread_name ());
 }

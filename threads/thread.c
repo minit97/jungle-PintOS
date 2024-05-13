@@ -221,10 +221,7 @@ thread_create (const char *name, int priority,
      *      compare the priorities of the currently running thread and the newly inserted one.
      *      Yield the CPU if the newly arriving thread has higher priority
      * */
-    struct thread *curr = thread_current();
-    if (curr->priority < priority) {
-        thread_yield();
-    }
+    check_ready_priority();
 
 	return tid;
 }
@@ -668,6 +665,16 @@ void thread_wakeup(int64_t curr_ticks) {
     }
 
     intr_set_level(old_level);
+}
+
+void check_ready_priority() {
+    if (list_empty(&ready_list)) return;
+
+    struct thread *curr = thread_current();
+    struct thread *ready = list_entry(list_max(&ready_list, compare_priority, NULL), struct thread, elem);
+    if (curr->priority < ready->priority) {
+        thread_yield();
+    }
 }
 
 
