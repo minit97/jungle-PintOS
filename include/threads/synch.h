@@ -42,6 +42,8 @@ void multiple_donation(struct lock *unlocked_lock);
 void nested_donation(struct lock *wanted_lock, struct thread *curr);
 void priority_donation(struct lock *lock);
 
+bool compare_sema_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
+
 /* Optimization barrier.
  *
  * The compiler will not reorder operations across an

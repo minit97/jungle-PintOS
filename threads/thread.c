@@ -667,7 +667,7 @@ void thread_wakeup(int64_t curr_ticks) {
     intr_set_level(old_level);
 }
 
-void check_ready_priority() {
+void check_ready_priority(void) {
     if (list_empty(&ready_list)) return;
 
     struct thread *curr = thread_current();

@@ -160,6 +160,6 @@ int64_t get_global_ticks_for_wakeup(void);
 bool compare_wakeup_tick(const struct list_elem *a, const struct list_elem *b, void *aux);
 bool compare_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
 
-void check_ready_priority();
+void check_ready_priority(void);
 
 #endif /* threads/thread.h */
