@@ -261,19 +261,22 @@ lock_release (struct lock *lock) {
     if (list_empty(&lock->semaphore.waiters)) {
         lock->holder = NULL;
     } else {
-//        thread_current()->priority = thread_current()->prev_priority;
-//        lock->holder = list_entry(list_front(&lock->semaphore.waiters), struct thread, elem);
-
         // multiple donation
         struct thread *prev_lock_holder = lock->holder;
 
-        struct thread *next_lock_holder = list_entry(list_front(&lock->semaphore.waiters), struct thread, elem);
-        next_lock_holder->wait_on_lock = NULL;
-        lock->holder = next_lock_holder;
-
+        // donations에서 해당 락에 대한 모든 d_elem 삭제
         struct list *donation_list = &prev_lock_holder->donations;
-        list_remove(&next_lock_holder->d_elem);
+        struct list_elem *temp_elem = list_begin(donation_list);
+        while (temp_elem != list_end(donation_list)) {
+            struct thread *temp_thread = list_entry(temp_elem, struct thread, d_elem);
+            if (temp_thread->wait_on_lock == lock) {
+                temp_elem = list_remove(temp_elem);
+            } else {
+                temp_elem = list_next(temp_elem);
+            }
+        }
 
+        // 현재 쓰레드 우선순위 결정
         if (list_empty(donation_list)) {
             thread_current()->priority = thread_current()->prev_priority;
         } else {
@@ -281,6 +284,10 @@ lock_release (struct lock *lock) {
             thread_current()->priority = highest_priority;
         }
 
+        // 다음 락 홀더 설정
+        struct thread *next_lock_holder = list_entry(list_front(&lock->semaphore.waiters), struct thread, elem);
+        next_lock_holder->wait_on_lock = NULL;
+        lock->holder = next_lock_holder;
     }
 	sema_up (&lock->semaphore);
 }

@@ -25,18 +25,18 @@ test_priority_donate_lower (void)
 
   lock_init (&lock);
   lock_acquire (&lock);
-  thread_create ("acquire", PRI_DEFAULT + 10, acquire_thread_func, &lock);      // priority : 41 / pre_priority : 31
+  thread_create ("acquire", PRI_DEFAULT + 10, acquire_thread_func, &lock);
   msg ("Main thread should have priority %d.  Actual priority: %d.",
-       PRI_DEFAULT + 10, thread_get_priority ());
+       PRI_DEFAULT + 10, thread_get_priority ());                                           // 1. Main thread should have priority 41.  Actual priority: 41.
 
-  msg ("Lowering base priority...");
-  thread_set_priority (PRI_DEFAULT - 10); // 21                                               // priority : 41 / pre_priority : 21
+  msg ("Lowering base priority...");                                                        // 2
+  thread_set_priority (PRI_DEFAULT - 10);
   msg ("Main thread should have priority %d.  Actual priority: %d.",
-       PRI_DEFAULT + 10, thread_get_priority ());                                             // priority : 41
+       PRI_DEFAULT + 10, thread_get_priority ());                                           // 3. Main thread should have priority 41.  Actual priority: 41.
   lock_release (&lock);
-  msg ("acquire must already have finished.");
+  msg ("acquire must already have finished.");                                              // 5
   msg ("Main thread should have priority %d.  Actual priority: %d.",
-       PRI_DEFAULT - 10, thread_get_priority ());                                             // priority : 21 / pre_priority : 21
+       PRI_DEFAULT - 10, thread_get_priority ());                                           // 6. Main thread should have priority 21.  Actual priority: 21.
 }
 
 static void
@@ -45,7 +45,7 @@ acquire_thread_func (void *lock_)
   struct lock *lock = lock_;
 
   lock_acquire (lock);
-  msg ("acquire: got the lock");
+  msg ("acquire: got the lock");    // 4
   lock_release (lock);
-  msg ("acquire: done");
+  msg ("acquire: done");            // 5
 }

@@ -33,13 +33,13 @@ test_priority_donate_one (void)
   lock_acquire (&lock);
   thread_create ("acquire1", PRI_DEFAULT + 1, acquire1_thread_func, &lock);
   msg ("This thread should have priority %d.  Actual priority: %d.",
-       PRI_DEFAULT + 1, thread_get_priority ());
+       PRI_DEFAULT + 1, thread_get_priority ());                                                // 1. This thread should have priority 32.  Actual priority: 32.
   thread_create ("acquire2", PRI_DEFAULT + 2, acquire2_thread_func, &lock);
   msg ("This thread should have priority %d.  Actual priority: %d.",
-       PRI_DEFAULT + 2, thread_get_priority ());
+       PRI_DEFAULT + 2, thread_get_priority ());                                                // 2. This thread should have priority 33.  Actual priority: 33.
   lock_release (&lock);
-  msg ("acquire2, acquire1 must already have finished, in that order.");
-  msg ("This should be the last line before finishing this test.");
+  msg ("acquire2, acquire1 must already have finished, in that order.");                        // 7
+  msg ("This should be the last line before finishing this test.");                             // 8
 }
 
 static void
@@ -48,9 +48,9 @@ acquire1_thread_func (void *lock_)
   struct lock *lock = lock_;
 
   lock_acquire (lock);
-  msg ("acquire1: got the lock");
+  msg ("acquire1: got the lock");   // 5
   lock_release (lock);
-  msg ("acquire1: done");
+  msg ("acquire1: done");           // 6
 }
 
 static void
@@ -59,7 +59,7 @@ acquire2_thread_func (void *lock_)
   struct lock *lock = lock_;
 
   lock_acquire (lock);
-  msg ("acquire2: got the lock");
+  msg ("acquire2: got the lock");   // 3
   lock_release (lock);
-  msg ("acquire2: done");
+  msg ("acquire2: done");           // 4
 }

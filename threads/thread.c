@@ -333,8 +333,15 @@ thread_yield (void) {                                   // yield the cpu and ins
 void
 thread_set_priority (int new_priority) {
     // project1[scheduling] - set priorty of the current thread, Reorder the ready_list
-	thread_current()->priority = new_priority;
-	thread_current()->prev_priority = new_priority;
+
+    thread_current()->prev_priority = new_priority;
+
+    if (list_empty(&thread_current()->donations)) {
+        thread_current()->priority = thread_current()->prev_priority;
+    } else {
+        int highest_priority = list_entry(list_front(&thread_current()->donations), struct thread, d_elem)->priority;
+        thread_current()->priority = highest_priority;
+    }
 
     check_ready_priority();
 }
