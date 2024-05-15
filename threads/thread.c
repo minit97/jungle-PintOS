@@ -334,11 +334,9 @@ void
 thread_set_priority (int new_priority) {
     // project1[scheduling] - set priorty of the current thread, Reorder the ready_list
 	thread_current()->priority = new_priority;
+	thread_current()->prev_priority = new_priority;
 
-    int ready_priority = list_entry (list_max(&ready_list, compare_priority, NULL), struct thread, elem)->priority;
-    if (ready_priority > new_priority) {
-        thread_yield();
-    }
+    check_ready_priority();
 }
 
 /* Returns the current thread's priority. */
@@ -688,6 +686,7 @@ bool compare_priority(const struct list_elem *a, const struct list_elem *b, void
 }
 
 void check_ready_priority(void) {
+//    if (thread_current() == idle_thread) return;
     if (list_empty(&ready_list)) return;
 
     struct thread *curr = thread_current();
