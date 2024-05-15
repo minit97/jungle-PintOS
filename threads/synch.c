@@ -271,7 +271,7 @@ lock_release (struct lock *lock) {
         next_lock_holder->wait_on_lock = NULL;
         lock->holder = next_lock_holder;
 
-        struct list *donation_list = prev_lock_holder->donations;
+        struct list *donation_list = &prev_lock_holder->donations;
         list_remove(&next_lock_holder->d_elem);
 
         if (list_empty(donation_list)) {
