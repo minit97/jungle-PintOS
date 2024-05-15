@@ -96,7 +96,8 @@ struct thread {
 
     // Priority Scheduling
 	int priority;                       /* Priority. */
-    struct lock *wait_on_lock;           /* lock that it waits for */
+	int prev_priority;                  /* for donation priority. */
+    struct lock *wait_on_lock;          /* lock that it waits for */
     struct list donations;              /* list of Donors */
     struct list_elem d_elem;            /* list_elem of Donors */
 

@@ -442,6 +442,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->magic = THREAD_MAGIC;
 
     // 초기화
+    t->prev_priority = priority;
     t->wait_on_lock = NULL;
     list_init (&t->donations);
 }
@@ -667,17 +668,6 @@ void thread_wakeup(int64_t curr_ticks) {
     intr_set_level(old_level);
 }
 
-void check_ready_priority(void) {
-    if (list_empty(&ready_list)) return;
-
-    struct thread *curr = thread_current();
-    struct thread *ready = list_entry(list_max(&ready_list, compare_priority, NULL), struct thread, elem);
-    if (curr->priority < ready->priority) {
-        thread_yield();
-    }
-}
-
-
 int64_t get_global_ticks_for_wakeup(void) {
     struct thread *temp_thread = list_entry(list_begin(&sleep_list), struct thread, elem);
     return temp_thread->wakeup_tick;
@@ -695,5 +685,15 @@ bool compare_priority(const struct list_elem *a, const struct list_elem *b, void
     struct thread *thread_b = list_entry(b, struct thread, elem);
 
     return thread_a->priority > thread_b->priority;
+}
+
+void check_ready_priority(void) {
+    if (list_empty(&ready_list)) return;
+
+    struct thread *curr = thread_current();
+    struct thread *next = list_entry(list_front(&ready_list), struct thread, elem);
+    if (curr->priority < next->priority) {
+        thread_yield();
+    }
 }
 
