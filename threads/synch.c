@@ -209,9 +209,13 @@ lock_acquire (struct lock *lock) {
     if (lock->holder == NULL) {
         lock->holder = curr;
     } else {
-        struct thread *hold_thread = lock->holder;
-        if (hold_thread->priority < curr->priority) {
-            hold_thread->priority = curr->priority;
+        curr->wait_on_lock = lock;
+        while(curr->wait_on_lock != NULL) {
+            struct thread *hold_thread = curr->wait_on_lock->holder;
+            if (hold_thread->priority < curr->priority) {
+                hold_thread->priority = curr->priority;
+            }
+            curr = hold_thread;
         }
     }
     sema_down (&lock->semaphore);
