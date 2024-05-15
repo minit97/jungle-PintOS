@@ -369,11 +369,11 @@ bool compare_sema_priority(const struct list_elem *a, const struct list_elem *b,
     struct semaphore_elem *a_sema_elem = list_entry(a, struct semaphore_elem, elem);
     struct semaphore_elem *b_sema_elem = list_entry(b, struct semaphore_elem, elem);
 
-    struct list_elem *a_waiters = &(a_sema_elem->semaphore.waiters);
-    struct list_elem *b_waiters = &(b_sema_elem->semaphore.waiters);
+    struct list *a_waiters = &(a_sema_elem->semaphore.waiters);
+    struct list *b_waiters = &(b_sema_elem->semaphore.waiters);
 
-    struct thread *a_thread = list_entry(a_waiters, struct thread, elem);
-    struct thread *b_thread = list_entry(b_waiters, struct thread, elem);
+    struct thread *a_waiters_begin = list_entry(list_begin(a_waiters), struct thread, elem);
+    struct thread *b_waiters_begin = list_entry(list_begin(b_waiters), struct thread, elem);
 
-    return a_thread->priority > b_thread->priority;
+    return a_waiters_begin->priority > b_waiters_begin->priority;
 }
