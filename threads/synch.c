@@ -249,10 +249,11 @@ lock_release (struct lock *lock) {
      */
 	ASSERT (lock != NULL);
 	ASSERT (lock_held_by_current_thread (lock));
-    thread_current()->priority = thread_current()->prev_priority;
+
     if (list_empty(&lock->semaphore.waiters)) {
         lock->holder = NULL;
     } else {
+        thread_current()->priority = thread_current()->prev_priority;
         lock->holder = list_entry(list_front(&lock->semaphore.waiters), struct thread, elem);
     }
 

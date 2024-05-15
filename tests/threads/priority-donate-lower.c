@@ -25,18 +25,18 @@ test_priority_donate_lower (void)
 
   lock_init (&lock);
   lock_acquire (&lock);
-  thread_create ("acquire", PRI_DEFAULT + 10, acquire_thread_func, &lock);
+  thread_create ("acquire", PRI_DEFAULT + 10, acquire_thread_func, &lock);      // priority : 41 / pre_priority : 31
   msg ("Main thread should have priority %d.  Actual priority: %d.",
        PRI_DEFAULT + 10, thread_get_priority ());
 
   msg ("Lowering base priority...");
-  thread_set_priority (PRI_DEFAULT - 10);
+  thread_set_priority (PRI_DEFAULT - 10); // 21                                               // priority : 41 / pre_priority : 21
   msg ("Main thread should have priority %d.  Actual priority: %d.",
-       PRI_DEFAULT + 10, thread_get_priority ());
+       PRI_DEFAULT + 10, thread_get_priority ());                                             // priority : 41
   lock_release (&lock);
   msg ("acquire must already have finished.");
   msg ("Main thread should have priority %d.  Actual priority: %d.",
-       PRI_DEFAULT - 10, thread_get_priority ());
+       PRI_DEFAULT - 10, thread_get_priority ());                                             // priority : 21 / pre_priority : 21
 }
 
 static void
