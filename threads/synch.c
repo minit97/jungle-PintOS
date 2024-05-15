@@ -209,6 +209,7 @@ lock_acquire (struct lock *lock) {
     if (lock->holder == NULL) {
         lock->holder = curr;
     } else {
+        // nested donation
         curr->wait_on_lock = lock;
         while(curr->wait_on_lock != NULL) {
             struct thread *hold_thread = curr->wait_on_lock->holder;
@@ -217,6 +218,9 @@ lock_acquire (struct lock *lock) {
             }
             curr = hold_thread;
         }
+
+        // multiple donation
+        list_insert_ordered(&lock->holder->donations, &thread_current()->d_elem, compare_donation_priority, NULL);
     }
     sema_down (&lock->semaphore);
 }
@@ -257,10 +261,27 @@ lock_release (struct lock *lock) {
     if (list_empty(&lock->semaphore.waiters)) {
         lock->holder = NULL;
     } else {
-        thread_current()->priority = thread_current()->prev_priority;
-        lock->holder = list_entry(list_front(&lock->semaphore.waiters), struct thread, elem);
-    }
+//        thread_current()->priority = thread_current()->prev_priority;
+//        lock->holder = list_entry(list_front(&lock->semaphore.waiters), struct thread, elem);
 
+        // multiple donation
+        struct thread *prev_lock_holder = lock->holder;
+
+        struct thread *next_lock_holder = list_entry(list_front(&lock->semaphore.waiters), struct thread, elem);
+        next_lock_holder->wait_on_lock = NULL;
+        lock->holder = next_lock_holder;
+
+        struct list *donation_list = prev_lock_holder->donations;
+        list_remove(&next_lock_holder->d_elem);
+
+        if (list_empty(donation_list)) {
+            thread_current()->priority = thread_current()->prev_priority;
+        } else {
+            int highest_priority = list_entry(list_front(donation_list), struct thread, d_elem)->priority;
+            thread_current()->priority = highest_priority;
+        }
+
+    }
 	sema_up (&lock->semaphore);
 }
 
@@ -381,4 +402,11 @@ bool compare_sema_priority(const struct list_elem *a, const struct list_elem *b,
     struct thread *b_waiters_begin = list_entry(list_begin(b_waiters), struct thread, elem);
 
     return a_waiters_begin->priority > b_waiters_begin->priority;
+}
+
+bool compare_donation_priority(const struct list_elem *a, const struct list_elem *b, void *aux) {
+    struct thread *thread_a = list_entry(a, struct thread, d_elem);
+    struct thread *thread_b = list_entry(b, struct thread, d_elem);
+
+    return thread_a->priority > thread_b->priority;
 }

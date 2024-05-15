@@ -43,6 +43,7 @@ void nested_donation(struct lock *wanted_lock, struct thread *curr);
 void priority_donation(struct lock *lock);
 
 bool compare_sema_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
+bool compare_donation_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
 
 /* Optimization barrier.
  *
