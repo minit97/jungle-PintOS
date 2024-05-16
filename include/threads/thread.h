@@ -101,6 +101,9 @@ struct thread {
     struct list donations;              /* list of Donors */
     struct list_elem d_elem;            /* list_elem of Donors */
 
+    // mlfqs
+    int nice;                           /* from -20 to 20 */
+    int recent_cpu;                     /* from 0 to 4 */
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
@@ -162,5 +165,12 @@ bool compare_wakeup_tick(const struct list_elem *a, const struct list_elem *b, v
 bool compare_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
 
 void check_ready_priority(void);
+
+// mlfqs
+void mlfqs_priority(struct thread *t);
+void mlfqs_recent_cpu(struct thread *t);
+void mlfqs_load_avg(void);
+void mlfqs_recent_cpu_increment(void);
+void mlfqs_recalc_threads(void);
 
 #endif /* threads/thread.h */

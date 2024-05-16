@@ -144,6 +144,10 @@ timer_interrupt (struct intr_frame *args UNUSED) {
     if(global_ticks <= ticks) {
         thread_wakeup(ticks);
     }
+
+    if (thread_mlfqs) {
+        mlfqs_recalc_threads();
+    }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
