@@ -1,6 +1,8 @@
 /* Checks that recent_cpu and priorities are updated for blocked
    threads.
 
+   block theads의 recent_cpu가 잘 갱신되었는지 확인하는 테스트
+
    The main thread sleeps for 25 seconds, spins for 5 seconds,
    then releases a lock.  The "block" thread spins for 20 seconds
    then attempts to acquire the lock, which will block for 10

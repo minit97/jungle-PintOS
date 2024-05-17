@@ -4,7 +4,11 @@
    perl -e '$i++,$a=(59*$a+1)/60while$a<=.5;print "$i\n"'
 
    Then, verifies that 10 seconds of inactivity drop the load
-   average back below 0.5 again. */
+   average back below 0.5 again.
+
+    단일 작업 스레드가 load_avg를 0.5로 올리는 데 38 ~ 45초 걸린다는 것을 확인한다. 42초를 기대한다.
+    10초 동안의 비활동으로 인해 부하 평균이 다시 0.5 아래로 떨어지는 것을 확인한다.
+ */
 
 #include <stdio.h>
 #include "tests/threads/tests.h"

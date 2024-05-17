@@ -104,6 +104,7 @@ struct thread {
     // mlfqs
     int nice;                           /* from -20 to 20 */
     int recent_cpu;                     /* from 0 to 4 */
+    struct list_elem all_elem;
 
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */

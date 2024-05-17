@@ -1,5 +1,7 @@
 /* Measures the correctness of the "nice" implementation.
 
+    nice 구현이 잘되었는지 확인하는 테스트
+
    The "fair" tests run either 2 or 20 threads all niced to 0.
    The threads should all receive approximately the same number
    of ticks.  Each test runs for 30 seconds, so the ticks should

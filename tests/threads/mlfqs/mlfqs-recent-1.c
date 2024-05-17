@@ -1,6 +1,8 @@
 /* Checks that recent_cpu is calculated properly for the case of
    a single ready process.
 
+   recent_cpu가 잘 계산되었는지 확인하는 테스트
+
    The expected output is this (some margin of error is allowed):
 
    After 2 seconds, recent_cpu is 6.40, load_avg is 0.03.

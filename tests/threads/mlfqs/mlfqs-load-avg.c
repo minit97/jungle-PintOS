@@ -4,6 +4,13 @@
    seconds, starting 10 seconds in, the main thread prints the
    load average.
 
+    1. 0 ~ 59번의 60개의 스레드를 시작한다.
+         각 스레드는 (10 + i)초 동안 sleep한 다음, 60초 동안 tight loop 내에서 spin하고, 그 후 총 120초가 지날 때까지 sleep한다.
+         이 때, i가 0부터 시작하여 숫자가 증가할수록 sleep 시간이 길어진다.
+         즉, 스레드 0은 10초 sleep 후 60초 동안 spin하고, 나머지 50초 동안 sleep 한다.
+         스레드 1은 11초 sleep 후 60초 동안 spin하고, 나머지 49초 동안 sleep 한다.
+    2. 초기 sleep 이후, 10초가 지난 후부터 2초마다 메인 스레드는 부하 평균을 출력한다.
+
    The expected output is listed below.  Some margin of error is
    allowed.
 
