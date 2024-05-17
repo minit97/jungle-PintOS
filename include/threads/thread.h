@@ -168,10 +168,9 @@ bool compare_priority(const struct list_elem *a, const struct list_elem *b, void
 void check_ready_priority(void);
 
 // mlfqs
-void mlfqs_priority(struct thread *t);
-void mlfqs_recent_cpu(struct thread *t);
-void mlfqs_load_avg(void);
 void mlfqs_recent_cpu_increment(void);
-void mlfqs_recalc_threads(void);
+void mlfqs_priority(void);
+void mlfqs_load_avg(void);
+void mlfqs_recent_cpu(void);
 
 #endif /* threads/thread.h */

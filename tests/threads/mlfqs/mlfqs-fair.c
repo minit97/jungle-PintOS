@@ -6,10 +6,14 @@
    The threads should all receive approximately the same number
    of ticks.  Each test runs for 30 seconds, so the ticks should
    also sum to approximately 30 * 100 == 3000 ticks.
+   - fair 테스트는 모든 스레드가 우선순위가 0으로 조정한 상태로 2 ~ 20개의 스레드 실행
+   - 이러한 스레드들은 동일한 틱 수를 받아야 한다. : 3000 ticks
 
    The mlfqs-nice-2 test runs 2 threads, one with nice 0, the
    other with nice 5, which should receive 1,904 and 1,096 ticks,
    respectively, over 30 seconds.
+   - 스레드 하나는 nice 0 이고, 다른 하나는 nice가 5이다.
+   - 각 ticks는 1904와 1096이다.
 
    The mlfqs-nice-10 test runs 10 threads with nice 0 through 9.
    They should receive 672, 588, 492, 408, 316, 232, 152, 92, 40,
@@ -110,8 +114,8 @@ static void
 load_thread (void *ti_) 
 {
   struct thread_info *ti = ti_;
-  int64_t sleep_time = 5 * TIMER_FREQ;
-  int64_t spin_time = sleep_time + 30 * TIMER_FREQ;
+  int64_t sleep_time = 5 * TIMER_FREQ;                  // 500
+  int64_t spin_time = sleep_time + 30 * TIMER_FREQ;     // 500 + 3000
   int64_t last_time = 0;
 
   thread_set_nice (ti->nice);

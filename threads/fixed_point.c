@@ -24,11 +24,11 @@ int convert_n_to_fp(int n) {
     return n * F;
 }
 
-int convert_x_to_int_zero(int x) {
+int convert_x_to_int_zero(int x) {  // 버림
     return x / F;
 }
 
-int convert_x_to_int_nearest(int x) {
+int convert_x_to_int_nearest(int x) {   // 반올림
     return x >= 0 ? (x + F / 2) / F : (x - F / 2) / F;
 }
 
