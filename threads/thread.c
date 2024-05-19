@@ -210,10 +210,12 @@ tid_t thread_create(const char *name, int priority, thread_func *function,
   t->tf.es = SEL_KDSEG;
   t->tf.ss = SEL_KDSEG;
   t->tf.cs = SEL_KCSEG;
-  t->tf.eflags = FLAG_IF;\
+  t->tf.eflags = FLAG_IF;
 
   /* Add to run queue. */
   thread_unblock(t);
+
+  // 새로 생성한 thread와 현재 실행중인 thread의 우선순위를 비교한다 (선점방식)
   thread_preempt();
 
   return tid;
@@ -285,6 +287,10 @@ void thread_sleep(int64_t ticks) {
   ASSERT(!intr_context());
 
   old_level = intr_disable();
+
+  if (curr == idle_thread) {
+    return;
+  }
 
   // 현 스레드가 idle_thread라면 block은 아니지만 schedule은 해야한다? 그러면
   // 항상 idle_thread는 runnign 상태에 남아있는 것인가?
@@ -673,16 +679,20 @@ bool compare_thread_priority(struct list_elem *e1, struct list_elem *e2,
   struct thread *e1_thread = list_entry(e1, struct thread, elem);
   struct thread *e2_thread = list_entry(e2, struct thread, elem);
 
-  return e1_thread->priority > e2_thread->priority;
+  return (e1_thread->priority) > (e2_thread->priority);
 }
 
 // 선점
 void thread_preempt(void) {
   struct thread *current_thread = thread_current();
 
-  list_sort(&ready_list, compare_thread_priority, NULL);
-  struct list_elem *pop_e = list_pop_front(&ready_list);
-  struct thread *compare_thread = list_entry(pop_e, struct thread, elem);
+  if (list_empty(&ready_list)) {
+    return;
+  }
+
+  list_sort(&ready_list, compare_thread_priority, current_thread->priority);
+  struct list_elem *target_e = list_begin(&ready_list);
+  struct thread *compare_thread = list_entry(target_e, struct thread, elem);
 
   if (current_thread->priority < compare_thread->priority) {
     thread_yield();

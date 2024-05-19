@@ -65,6 +65,8 @@ void sema_down(struct semaphore *sema) {
   ASSERT(!intr_context());
 
   old_level = intr_disable();
+
+  // 현 스레드가 락을 획득하지 못 한다
   while (sema->value == 0) {
     struct thread *current_thread = thread_current();
     list_insert_ordered(&sema->waiters, &current_thread->elem,
@@ -113,6 +115,7 @@ void sema_up(struct semaphore *sema) {
         list_entry(list_pop_front(&sema->waiters), struct thread, elem));
   }
   sema->value++;
+  thread_preempt();
   intr_set_level(old_level);
 }
 
@@ -270,7 +273,7 @@ void cond_wait(struct condition *cond, struct lock *lock) {
   ASSERT(lock_held_by_current_thread(lock));
 
   sema_init(&waiter.semaphore, 0);
-  list_insert_ordered(&cond->waiters, &waiter.elem, compare_thread_priority,
+  list_insert_ordered(&cond->waiters, &waiter.elem, compare_semaphore_priority,
                       NULL);
   lock_release(lock);
   sema_down(&waiter.semaphore);
@@ -291,7 +294,7 @@ void cond_signal(struct condition *cond, struct lock *lock UNUSED) {
   ASSERT(lock_held_by_current_thread(lock));
 
   if (!list_empty(&cond->waiters)) {
-    list_sort(&cond->waiters, compare_thread_priority, NULL);
+    list_sort(&cond->waiters, compare_semaphore_priority, NULL);
     sema_up(
         &list_entry(list_pop_front(&cond->waiters), struct semaphore_elem, elem)
              ->semaphore);
@@ -309,4 +312,21 @@ void cond_broadcast(struct condition *cond, struct lock *lock) {
   ASSERT(lock != NULL);
 
   while (!list_empty(&cond->waiters)) cond_signal(cond, lock);
+}
+
+// 각 세마포어에 waiters가 있고
+// 각 waiters중에서 가장 우선순위가 높은 thread끼리 우선순위를 최종적으로
+// 비교한다
+bool compare_semaphore_priority(const struct list_elem *e1,
+                                const struct list_elem *e2, void *aux) {
+  struct semaphore_elem *s1 = list_entry(e1, struct semaphore_elem, elem);
+  struct semaphore_elem *s2 = list_entry(e2, struct semaphore_elem, elem);
+
+  struct list_elem *se1 = list_begin(&s1->semaphore.waiters);
+  struct list_elem *se2 = list_begin(&s2->semaphore.waiters);
+
+  struct thread *t1 = list_entry(se1, struct thread, elem);
+  struct thread *t2 = list_entry(se2, struct thread, elem);
+
+  return t1->priority > t2->priority;
 }
