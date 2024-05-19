@@ -147,9 +147,13 @@ int thread_get_load_avg(void);
 
 bool compare_thread_local_tick(struct list_elem *e1, struct list_elem *e2,
                                void *aux);
+bool compare_thread_priority(struct list_elem *e1, struct list_elem *e2,
+                             void *aux);
 
 void update_global_ticks();
 int64_t get_global_ticks();
+
+void thread_preempt(void);
 
 void do_iret(struct intr_frame *tf);
 

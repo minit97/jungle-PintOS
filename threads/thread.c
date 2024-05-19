@@ -210,10 +210,11 @@ tid_t thread_create(const char *name, int priority, thread_func *function,
   t->tf.es = SEL_KDSEG;
   t->tf.ss = SEL_KDSEG;
   t->tf.cs = SEL_KCSEG;
-  t->tf.eflags = FLAG_IF;
+  t->tf.eflags = FLAG_IF;\
 
   /* Add to run queue. */
   thread_unblock(t);
+  thread_preempt();
 
   return tid;
 }
@@ -246,7 +247,8 @@ void thread_unblock(struct thread *t) {
 
   old_level = intr_disable();
   ASSERT(t->status == THREAD_BLOCKED);
-  list_push_back(&ready_list, &t->elem);
+  list_insert_ordered(&ready_list, &t->elem, compare_thread_priority,
+                      t->priority);
   t->status = THREAD_READY;
   intr_set_level(old_level);
 }
@@ -284,7 +286,8 @@ void thread_sleep(int64_t ticks) {
 
   old_level = intr_disable();
 
-  // 현 스레드가 idle_thread라면 block은 아니지만 schedule은 해야한다? 그러면 항상 idle_thread는 runnign 상태에 남아있는 것인가?
+  // 현 스레드가 idle_thread라면 block은 아니지만 schedule은 해야한다? 그러면
+  // 항상 idle_thread는 runnign 상태에 남아있는 것인가?
   if (curr != idle_thread) {
     curr->local_tick = ticks;
     curr->status = THREAD_BLOCKED;
@@ -324,11 +327,11 @@ void thread_yield(void) {
   ASSERT(!intr_context());
 
   old_level = intr_disable();
-  if (curr != idle_thread)
+  if (curr != idle_thread) {
     // ready_list에 넣는다
-    list_push_back(&ready_list, &curr->elem);
-
-  // ready
+    list_insert_ordered(&ready_list, &curr->elem, compare_thread_priority,
+                        curr->priority);
+  }
   do_schedule(THREAD_READY);
   intr_set_level(old_level);
 }
@@ -336,6 +339,7 @@ void thread_yield(void) {
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority) {
   thread_current()->priority = new_priority;
+  thread_preempt();
 }
 
 /* Returns the current thread's priority. */
@@ -654,11 +658,33 @@ void update_global_ticks() {
 
 int64_t get_global_ticks() { return global_tick; }
 
-// 내림차순으로 정렬한다
+// local tick을 오름차순으로 정렬한다
 bool compare_thread_local_tick(struct list_elem *e1, struct list_elem *e2,
                                void *aux) {
   struct thread *e1_thread = list_entry(e1, struct thread, elem);
   struct thread *e2_thread = list_entry(e2, struct thread, elem);
 
   return e1_thread->local_tick < e2_thread->local_tick;
+}
+
+// 우선순위를 내림차순으로 정렬한다.
+bool compare_thread_priority(struct list_elem *e1, struct list_elem *e2,
+                             void *aux) {
+  struct thread *e1_thread = list_entry(e1, struct thread, elem);
+  struct thread *e2_thread = list_entry(e2, struct thread, elem);
+
+  return e1_thread->priority > e2_thread->priority;
+}
+
+// 선점
+void thread_preempt(void) {
+  struct thread *current_thread = thread_current();
+
+  list_sort(&ready_list, compare_thread_priority, NULL);
+  struct list_elem *pop_e = list_pop_front(&ready_list);
+  struct thread *compare_thread = list_entry(pop_e, struct thread, elem);
+
+  if (current_thread->priority < compare_thread->priority) {
+    thread_yield();
+  }
 }
