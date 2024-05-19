@@ -282,18 +282,22 @@ void thread_sleep(int64_t ticks) {
 
   ASSERT(!intr_context());
 
-  if (curr == idle_thread) {
-    return;
-  }
-
   old_level = intr_disable();
-  curr->local_tick = ticks;
-  list_insert_ordered(&sleep_list, &curr->elem, compare_thread_local_tick,
-                      &curr->local_tick);
-  update_global_ticks();
-  thread_block();
+
+  // 현 스레드가 idle_thread라면 block은 아니지만 schedule은 해야한다? 그러면 항상 idle_thread는 runnign 상태에 남아있는 것인가?
+  if (curr != idle_thread) {
+    curr->local_tick = ticks;
+    curr->status = THREAD_BLOCKED;
+    list_insert_ordered(&sleep_list, &curr->elem, compare_thread_local_tick,
+                        &curr->local_tick);
+    update_global_ticks();
+  }
+  // 스케줄링을 하기 위해서는 인터럽트를 꺼야한다
+  schedule();
+
   intr_set_level(old_level);
 }
+
 /* Deschedules the current thread and destroys it.  Never
    returns to the caller. */
 void thread_exit(void) {
