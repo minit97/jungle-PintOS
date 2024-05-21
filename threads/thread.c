@@ -202,7 +202,7 @@ thread_create (const char *name, int priority,
 	ASSERT (function != NULL);
 
 	/* Allocate thread. */
-	t = palloc_get_page (PAL_ZERO);
+	t = palloc_get_page (PAL_ZERO);     // 4KB
 	if (t == NULL)
 		return TID_ERROR;
 
@@ -684,7 +684,7 @@ bool compare_priority(const struct list_elem *a, const struct list_elem *b, void
 }
 
 void check_ready_priority(void) {
-//    if (thread_current() == idle_thread) return;
+    if (thread_current() == idle_thread) return;
     if (list_empty(&ready_list)) return;
 
     list_sort(&ready_list, compare_priority, NULL);
