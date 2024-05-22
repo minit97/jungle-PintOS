@@ -55,7 +55,6 @@ process_create_initd (const char *file_name) {  // process_execute()
      */
     char *thread_name, *next_file_ptr;
     thread_name = strtok_r (file_name, " ", &next_file_ptr);
-    printf("쓰레드이름. %s \n", thread_name);
 
 	/* Create a new thread to execute FILE_NAME. */
 	tid = thread_create (thread_name, PRI_DEFAULT, initd, fn_copy);
@@ -195,19 +194,18 @@ process_exec (void *f_name) {   // start_process()
 
 	/* And then load the binary */
     // file_name : program name | &if_.rip : Function entry point | &if_.rsp : Stack top(user stack)
-    printf("프로그램 이름 : %s\n", argv[0]);
 	success = load (argv[0], &_if);
 
     /** PHM
      * 2. Save tokens on user stack of new process
      */
     argument_stack(argv, argc, &_if.rsp);
-    hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
 
     // Point %rsi to argv (the address of argv[0]) and set %rdi to argc.
     _if.R.rdi = argc;              // argc: main함수가 받은 인자의 수
     _if.R.rsi = _if.rsp + 8;      // argv: main 함수가 받은 각각의 인자들
 
+    hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
@@ -679,37 +677,33 @@ setup_stack (struct intr_frame *if_) {
 void argument_stack(char **argv, int argc, void **rsp) {  // User Stack 저장
     char *argv_address[argc];
     uint8_t size = 0;
-    printf("1. start : %p\n", *rsp);    // 0x47480000
 
     // argv 문자열
     for (int i = argc - 1; i >= 0; i--) {
-        *rsp -= (strlen(argv[i]) + 1);                 // string length + 1byte(\n)
+        *rsp -= (strlen(argv[i]) + 1);                 // string length + 1byte(\n) - null pointer sentinel
         memcpy(*rsp, argv[i], strlen(argv[i]) + 1);
         size += strlen(argv[i]) + 1;
         argv_address[i] = *rsp;
-        printf("2. str : %p\n", *rsp);
     }
 
-    // word-align
-    if (size % 8) {
-        for (int i = (8 - (size % 8)); i > 0; i--) {
-            *rsp -= 1;
-            **(char **)rsp = 0;
-        }
+    // word-align : 첫 번째 push 이전에 스택 포인터를 8의 배수로 내림하여 정렬
+    if(size % 8) {
+        int padding = size % 8;
+        *rsp -= padding;
+        memset(*rsp, 0, padding);
     }
 
-//    *rsp -= 8;
-//    **(char **)rsp = 0;
+    // 배열의 끝을 나타내기 위해 null pointer sentinel 추가
+    *rsp -= 8;
+    memset(*rsp, 0, 8);
 
     // argv 주소
     for (int i = argc - 1; i >= 0; i--) {
         *rsp -= 8;                                      // 포인터니깐 8byte
         memcpy(*rsp, &argv_address[i], strlen(&argv_address[i]));
-        printf("3. str ptr : %p\n", *rsp);
     }
 
     // return address(fake)
     *rsp -= 8;
-    **(char **)rsp = 0;
-    printf("4. return addr : %p\n", *rsp);
+    memset(*rsp, 0, 8);
 }
