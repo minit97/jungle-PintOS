@@ -216,7 +216,7 @@ outputs:
 'tokenize.'
 */
 char *
-strtok_r (char *s, const char *delimiters, char **save_ptr) {
+strtok_r (char *s, const char *delimiters, char **save_ptr) {   // Tokenizing
 	char *token;
 
 	ASSERT (delimiters != NULL);
@@ -256,6 +256,13 @@ strtok_r (char *s, const char *delimiters, char **save_ptr) {
 /* Sets the SIZE bytes in DST to VALUE. */
 void *
 memset (void *dst_, int value, size_t size) {
+    /**
+     * 첫 번째 인자 void * ptr은 세팅하고자 하는 메모리의 시작주소
+     * 두 번째 인자 value는 메모리에 세팅하고자 하는 값
+     * 세 번째 인자 size_t num은 길이를 뜻한다.
+     * returns 성공시 첫 번째 인자로 들어간 ptr, 실패시 NULL
+     */
+
 	unsigned char *dst = dst_;
 
 	ASSERT (dst != NULL || size == 0);
@@ -300,6 +307,11 @@ http://www.courtesan.com/todd/papers/strlcpy.html for
 information on strlcpy(). */
 size_t
 strlcpy (char *dst, const char *src, size_t size) {
+    /**
+     * dest : 복사가 진행될 목적지
+     * src : 우리가 복사를 해야하는 값이 들어있는 포인터
+     * size : 최대 size -1 만큼만 복사 진행(”\0값을 넣기 위해”)
+     */
 	size_t src_len;
 
 	ASSERT (dst != NULL);

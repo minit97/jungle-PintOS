@@ -39,19 +39,26 @@ process_init (void) {
  * thread id, or TID_ERROR if the thread cannot be created.
  * Notice that THIS SHOULD BE CALLED ONCE. */
 tid_t
-process_create_initd (const char *file_name) {
+process_create_initd (const char *file_name) {  // process_execute()
 	char *fn_copy;
 	tid_t tid;
 
-	/* Make a copy of FILE_NAME.
-	 * Otherwise there's a race between the caller and load(). */
+	/* Make a copy of FILE_NAME. Otherwise there's a race between the caller and load(). */
 	fn_copy = palloc_get_page (0);
 	if (fn_copy == NULL)
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
 
+    /** PHM
+     * 1. Parse the string of file_name
+     * 2. Forward first token as name of new process to thread_create() function
+     */
+    char *thread_name, *next_file_ptr;
+    thread_name = strtok_r (file_name, " ", &next_file_ptr);
+    printf("쓰레드이름. %s \n", thread_name);
+
 	/* Create a new thread to execute FILE_NAME. */
-	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
+	tid = thread_create (thread_name, PRI_DEFAULT, initd, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 	return tid;
@@ -68,7 +75,7 @@ initd (void *f_name) {
 
 	if (process_exec (f_name) < 0)
 		PANIC("Fail to launch initd\n");
-	NOT_REACHED ();
+	NOT_REACHED ();                             // #define NOT_REACHED() PANIC ("executed an unreachable statement");
 }
 
 /* Clones the current process as `name`. Returns the new process's thread id, or
@@ -161,7 +168,7 @@ error:
 /* Switch the current execution context to the f_name.
  * Returns -1 on fail. */
 int
-process_exec (void *f_name) {
+process_exec (void *f_name) {   // start_process()
 	char *file_name = f_name;
 	bool success;
 
@@ -176,8 +183,31 @@ process_exec (void *f_name) {
 	/* We first kill the current context */
 	process_cleanup ();
 
+    /** PHM
+     * 1. Parse file_name
+     */
+    char *token, *save_ptr;
+    char *argv[64];
+    int argc = 0;
+    for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
+        argv[argc++] = token;
+    }
+
 	/* And then load the binary */
-	success = load (file_name, &_if);
+    // file_name : program name | &if_.rip : Function entry point | &if_.rsp : Stack top(user stack)
+    printf("프로그램 이름 : %s\n", argv[0]);
+	success = load (argv[0], &_if);
+
+    /** PHM
+     * 2. Save tokens on user stack of new process
+     */
+    argument_stack(argv, argc, &_if.rsp);
+    hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
+
+    // Point %rsi to argv (the address of argv[0]) and set %rdi to argc.
+    _if.R.rdi = argc;              // argc: main함수가 받은 인자의 수
+    _if.R.rsi = _if.rsp + 8;      // argv: main 함수가 받은 각각의 인자들
+
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
@@ -200,10 +230,11 @@ process_exec (void *f_name) {
  * This function will be implemented in problem 2-2.  For now, it
  * does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) {
+process_wait (tid_t child_tid UNUSED) {     // The OS quits without waiting for the process to finish!
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
+    for (int i = 0; i < 500000000; i++) {}  // 시간이 너무 짧으면 강제종료, while(1)로 하면 안끝남.
 	return -1;
 }
 
@@ -316,12 +347,19 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		uint32_t read_bytes, uint32_t zero_bytes,
 		bool writable);
 
-/* Loads an ELF executable from FILE_NAME into the current thread.
- * Stores the executable's entry point into *RIP
- * and its initial stack pointer into *RSP.
- * Returns true if successful, false otherwise. */
+/* Loads an ELF executable from FILE_NAME into the current thread.          * FILE_NAME에서 ELF 실행 파일을 현재 스레드로 로드합니다.
+ * Stores the executable's entry point into *RIP                            * 실행 파일의 진입 지점을 *RIP에 저장하고
+ * and its initial stack pointer into *RSP.                                 * 초기 스택 포인터를 *RSP에 저장합니다.
+ * Returns true if successful, false otherwise.                             * 성공하면 true를 반환하고, 그렇지 않으면 false를 반환합니다. */
 static bool
 load (const char *file_name, struct intr_frame *if_) {
+    /* Load a ELF file
+     * - Create page table (2 level paging)
+     * - Open the file, read the ELF header
+     * - Parse the file, load the 'data' to the data segment
+     * - Create user stack and initialize it
+     */
+
 	struct thread *t = thread_current ();
 	struct ELF ehdr;
 	struct file *file = NULL;
@@ -330,10 +368,10 @@ load (const char *file_name, struct intr_frame *if_) {
 	int i;
 
 	/* Allocate and activate page directory. */
-	t->pml4 = pml4_create ();
+	t->pml4 = pml4_create ();       // create page directory
 	if (t->pml4 == NULL)
 		goto done;
-	process_activate (thread_current ());
+	process_activate (thread_current ());       // set cr3 register
 
 	/* Open executable file. */
 	file = filesys_open (file_name);
@@ -389,16 +427,15 @@ load (const char *file_name, struct intr_frame *if_) {
 						/* Normal segment.
 						 * Read initial part from disk and zero the rest. */
 						read_bytes = page_offset + phdr.p_filesz;
-						zero_bytes = (ROUND_UP (page_offset + phdr.p_memsz, PGSIZE)
-								- read_bytes);
+						zero_bytes = (ROUND_UP (page_offset + phdr.p_memsz, PGSIZE) - read_bytes);
 					} else {
 						/* Entirely zero.
 						 * Don't read anything from disk. */
 						read_bytes = 0;
 						zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
 					}
-					if (!load_segment (file, file_page, (void *) mem_page,
-								read_bytes, zero_bytes, writable))
+                    // load the executable file
+					if (!load_segment (file, file_page, (void *) mem_page, read_bytes, zero_bytes, writable))
 						goto done;
 				}
 				else
@@ -408,11 +445,11 @@ load (const char *file_name, struct intr_frame *if_) {
 	}
 
 	/* Set up stack. */
-	if (!setup_stack (if_))
+	if (!setup_stack (if_))     // initializing use stack
 		goto done;
 
 	/* Start address. */
-	if_->rip = ehdr.e_entry;
+	if_->rip = ehdr.e_entry;    // initialize entry point
 
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
@@ -637,3 +674,42 @@ setup_stack (struct intr_frame *if_) {
 	return success;
 }
 #endif /* VM */
+
+
+void argument_stack(char **argv, int argc, void **rsp) {  // User Stack 저장
+    char *argv_address[argc];
+    uint8_t size = 0;
+    printf("1. start : %p\n", *rsp);    // 0x47480000
+
+    // argv 문자열
+    for (int i = argc - 1; i >= 0; i--) {
+        *rsp -= (strlen(argv[i]) + 1);                 // string length + 1byte(\n)
+        memcpy(*rsp, argv[i], strlen(argv[i]) + 1);
+        size += strlen(argv[i]) + 1;
+        argv_address[i] = *rsp;
+        printf("2. str : %p\n", *rsp);
+    }
+
+    // word-align
+    if (size % 8) {
+        for (int i = (8 - (size % 8)); i > 0; i--) {
+            *rsp -= 1;
+            **(char **)rsp = 0;
+        }
+    }
+
+//    *rsp -= 8;
+//    **(char **)rsp = 0;
+
+    // argv 주소
+    for (int i = argc - 1; i >= 0; i--) {
+        *rsp -= 8;                                      // 포인터니깐 8byte
+        memcpy(*rsp, &argv_address[i], strlen(&argv_address[i]));
+        printf("3. str ptr : %p\n", *rsp);
+    }
+
+    // return address(fake)
+    *rsp -= 8;
+    **(char **)rsp = 0;
+    printf("4. return addr : %p\n", *rsp);
+}
