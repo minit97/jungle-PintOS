@@ -15,6 +15,7 @@
 #include "threads/interrupt.h"
 #include "threads/palloc.h"
 #include "threads/thread.h"
+#include "threads/synch.h"
 #include "threads/mmu.h"
 #include "threads/vaddr.h"
 #include "intrinsic.h"
@@ -82,8 +83,7 @@ initd (void *f_name) {
 tid_t
 process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	/* Clone current thread to new thread.*/
-	return thread_create (name,
-			PRI_DEFAULT, __do_fork, thread_current ());
+	return thread_create (name, PRI_DEFAULT, __do_fork, thread_current ());
 }
 
 #ifndef VM
@@ -202,10 +202,10 @@ process_exec (void *f_name) {   // start_process()
     argument_stack(argv, argc, &_if.rsp);
 
     // Point %rsi to argv (the address of argv[0]) and set %rdi to argc.
-    _if.R.rdi = argc;              // argc: main함수가 받은 인자의 수
-    _if.R.rsi = _if.rsp + 8;      // argv: main 함수가 받은 각각의 인자들
+    _if.R.rdi = argc;               // argc: main함수가 받은 인자의 수
+    _if.R.rsi = _if.rsp + 8;        // argv: main 함수가 받은 각각의 인자들
 
-    hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
+//    hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
@@ -229,9 +229,11 @@ process_exec (void *f_name) {   // start_process()
  * does nothing. */
 int
 process_wait (tid_t child_tid UNUSED) {     // The OS quits without waiting for the process to finish!
-	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
-	 * XXX:       to add infinite loop here before
-	 * XXX:       implementing the process_wait. */
+	/**
+	 *
+	 */
+//	sema_down();
+
     for (int i = 0; i < 500000000; i++) {}  // 시간이 너무 짧으면 강제종료, while(1)로 하면 안끝남.
 	return -1;
 }

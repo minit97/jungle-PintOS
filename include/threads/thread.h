@@ -109,6 +109,12 @@ struct thread {
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
 
+    // user program
+    int exit_status;
+    struct thread *parent;
+    struct list child_list;             // list_push_back
+    struct list_elem child_elem;
+
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */
 	uint64_t *pml4;                     /* Page map level 4 */
