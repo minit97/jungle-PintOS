@@ -690,7 +690,7 @@ void argument_stack(char **argv, int argc, void **rsp) {  // User Stack 저장
 
     // word-align : 첫 번째 push 이전에 스택 포인터를 8의 배수로 내림하여 정렬
     if(size % 8) {
-        int padding = size % 8;
+        int padding = 8 - (size % 8);
         *rsp -= padding;
         memset(*rsp, 0, padding);
     }
