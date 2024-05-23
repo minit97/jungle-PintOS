@@ -24,14 +24,14 @@ typedef int off_t;
 void halt (void) NO_RETURN;
 void exit (int status) NO_RETURN;
 pid_t fork (const char *thread_name);
-int exec (const char *cmd_line);
-int wait (pid_t pid);
+int exec (const char *file);
+int wait (pid_t);
 bool create (const char *file, unsigned initial_size);
 bool remove (const char *file);
 int open (const char *file);
 int filesize (int fd);
-int read (int fd, void *buffer, unsigned size);
-int write (int fd, const void *buffer, unsigned size);
+int read (int fd, void *buffer, unsigned length);
+int write (int fd, const void *buffer, unsigned length);
 void seek (int fd, unsigned position);
 unsigned tell (int fd);
 void close (int fd);
@@ -51,31 +51,31 @@ int inumber (int fd);
 int symlink (const char* target, const char* linkpath);
 
 static inline void* get_phys_addr (void *user_addr) {
-	void* pa;
-	asm volatile ("movq %0, %%rax" ::"r"(user_addr));
-	asm volatile ("int $0x42");
-	asm volatile ("\t movq %%rax, %0": "=r" (pa));
-	return pa;
+    void* pa;
+    asm volatile ("movq %0, %%rax" ::"r"(user_addr));
+    asm volatile ("int $0x42");
+    asm volatile ("\t movq %%rax, %0": "=r" (pa));
+    return pa;
 }
 
 static inline long long
 get_fs_disk_read_cnt (void) {
-	long long read_cnt;
-	asm volatile ("movq $0, %rdx");
-	asm volatile ("movq $1, %rcx");
-	asm volatile ("int $0x43");
-	asm volatile ("\t movq %%rax, %0": "=r" (read_cnt));
-	return read_cnt;
+    long long read_cnt;
+    asm volatile ("movq $0, %rdx");
+    asm volatile ("movq $1, %rcx");
+    asm volatile ("int $0x43");
+    asm volatile ("\t movq %%rax, %0": "=r" (read_cnt));
+    return read_cnt;
 }
 
 static inline long long
 get_fs_disk_write_cnt (void) {
-	long long write_cnt;
-	asm volatile ("movq $0, %rdx");
-	asm volatile ("movq $1, %rcx");
-	asm volatile ("int $0x44");
-	asm volatile ("\t movq %%rax, %0": "=r" (write_cnt));
-	return write_cnt;
+    long long write_cnt;
+    asm volatile ("movq $0, %rdx");
+    asm volatile ("movq $1, %rcx");
+    asm volatile ("int $0x44");
+    asm volatile ("\t movq %%rax, %0": "=r" (write_cnt));
+    return write_cnt;
 }
 
 #endif /* lib/user/syscall.h */
