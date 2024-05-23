@@ -119,6 +119,7 @@ main (void) {
 	printf ("Boot complete.\n");
 
 	/* Run actions specified on kernel command line. */
+	/* 명령줄 인자가 포함된 argv 배열을 전달*/
 	run_actions (argv);
 
 	/* Finish up. */
@@ -235,6 +236,7 @@ parse_options (char **argv) {
 }
 
 /* Runs the task specified in ARGV[1]. */
+// 응용 프로그램을 실행한다
 static void
 run_task (char **argv) {
 	const char *task = argv[1];
@@ -244,6 +246,8 @@ run_task (char **argv) {
 	if (thread_tests){
 		run_test (task);
 	} else {
+		// 프로세스(스레드) 생성 함수를 호출하고 tid를 리턴한다
+		// 생성한 자식 프로세스가 종료할 떄까지 기다린다
 		process_wait (process_create_initd (task));
 	}
 #else
@@ -254,13 +258,14 @@ run_task (char **argv) {
 
 /* Executes all of the actions specified in ARGV[]
    up to the null pointer sentinel. */
+/* null 포인터 종결자까지 argv 배열에 지정된 작업을 실행한다*/
 static void
 run_actions (char **argv) {
 	/* An action. */
 	struct action {
-		char *name;                       /* Action name. */
-		int argc;                         /* # of args, including action name. */
-		void (*function) (char **argv);   /* Function to execute action. */
+		char *name;                       /* 작업 이름 */
+		int argc;                         /* 작업 이름을 포함한 인자 수 */
+		void (*function) (char **argv);   /* 작업을 실행할 함수 */
 	};
 
 	/* Table of supported actions. */
@@ -276,11 +281,13 @@ run_actions (char **argv) {
 		{NULL, 0, NULL},
 	};
 
+	// 각 명령줄 인자를 순회한다
 	while (*argv != NULL) {
 		const struct action *a;
 		int i;
 
 		/* Find action name. */
+		/* 각 인자에 대해 actions 배열의 어떤 작업과 일치하는지 확인*/
 		for (a = actions; ; a++)
 			if (a->name == NULL)
 				PANIC ("unknown action `%s' (use -h for help)", *argv);
@@ -288,11 +295,13 @@ run_actions (char **argv) {
 				break;
 
 		/* Check for required arguments. */
+		/** 해당작업에 필요한 인자 수가 충분한지 확인*/
 		for (i = 1; i < a->argc; i++)
 			if (argv[i] == NULL)
 				PANIC ("action `%s' requires %d argument(s)", *argv, a->argc - 1);
 
 		/* Invoke action and advance. */
+		/* 해당 작업에 해당하는 함수 호출*/
 		a->function (argv);
 		argv += a->argc;
 	}

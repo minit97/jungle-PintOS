@@ -55,9 +55,9 @@ struct intr_frame {
 	uintptr_t rip;
 	uint16_t cs;
 	uint16_t __pad5;
-	uint32_t __pad6;
+	uint32_t __pad6; 
 	uint64_t eflags;
-	uintptr_t rsp;
+	uintptr_t rsp; // 스택 포인터
 	uint16_t ss;
 	uint16_t __pad7;
 	uint32_t __pad8;

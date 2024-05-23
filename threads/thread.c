@@ -205,7 +205,7 @@ thread_print_stats (void) {
    The code provided sets the new thread's `priority' member to
    PRIORITY, but no actual priority scheduling is implemented.
    Priority scheduling is the goal of Problem 1-3. */
-tid_t
+tid_t // 이름, 우선순위, 실행될 함수, 새 스레드에서 실행될 함수에 전달될 인자 -> function은 새 스레드에서 실행할 함수로 auxf를 이용하여 동작 수행
 thread_create (const char *name, int priority,
 		thread_func *function, void *aux) {
 	struct thread *t;
@@ -237,7 +237,6 @@ thread_create (const char *name, int priority,
 	thread_unblock (t);
 	if(name != "idle")
 		list_push_back(&all_list, &t->a_elem);
-	// max_priority();
 	struct thread *cur = running_thread();
 	if (cur->priority < priority)
 	{
@@ -495,10 +494,10 @@ next_thread_to_run (void) {
 
 /* Use iretq to launch the thread */
 void
-do_iret (struct intr_frame *tf) {
+ do_iret (struct intr_frame *tf) {
 	__asm __volatile(
-			"movq %0, %%rsp\n"
-			"movq 0(%%rsp),%%r15\n"
+			"movq %0, %%rsp\n" // tf의 주소를 rsp로 설정
+			"movq 0(%%rsp),%%r15\n" 
 			"movq 8(%%rsp),%%r14\n"
 			"movq 16(%%rsp),%%r13\n"
 			"movq 24(%%rsp),%%r12\n"
@@ -509,7 +508,7 @@ do_iret (struct intr_frame *tf) {
 			"movq 64(%%rsp),%%rsi\n"
 			"movq 72(%%rsp),%%rdi\n"
 			"movq 80(%%rsp),%%rbp\n"
-			"movq 88(%%rsp),%%rdx\n"
+			"movq 88(%%rsp),%%rdx\n"  
 			"movq 96(%%rsp),%%rcx\n"
 			"movq 104(%%rsp),%%rbx\n"
 			"movq 112(%%rsp),%%rax\n"
