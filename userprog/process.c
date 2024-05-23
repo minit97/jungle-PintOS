@@ -702,7 +702,7 @@ void argument_stack(char **argv, int argc, void **rsp) {  // User Stack 저장
     // argv 주소
     for (int i = argc - 1; i >= 0; i--) {
         *rsp -= 8;                                      // 포인터니깐 8byte
-        memcpy(*rsp, &argv_address[i], strlen(&argv_address[i]));
+        memcpy(*rsp, &argv_address[i], 8);
     }
 
     // return address(fake)

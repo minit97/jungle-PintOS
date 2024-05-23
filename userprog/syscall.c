@@ -9,6 +9,8 @@
 #include "threads/init.h"
 #include "intrinsic.h"
 
+#include "kernel/stdio.h"
+
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 
@@ -50,40 +52,61 @@ syscall_handler (struct intr_frame *f UNUSED) {
      * 3. Copy arguments on the user stack to the kernel
      * 4. Save return value of system call at rax register
      */
-    uint64_t exec_number = f->R.rax;
-    switch (exec_number) {
+    uint64_t system_call_num = f->R.rax;
+    uint64_t arg1 = f->R.rdi;
+    uint64_t arg2 = f->R.rsi;
+    uint64_t arg3 = f->R.rdx;
+    uint64_t arg4 = f->R.r10;
+    uint64_t arg5 = f->R.r8;
+    uint64_t arg6 = f->R.r9;
+
+//    printf("박현민 1. 시스템콜 rdi : %d\n" , arg1);    // 첫 번째 인자를 전달
+//    printf("박현민 2. 시스템콜 rsi : %s\n" , arg2);    // 두 번째 인자를 전달
+//    printf("박현민 3. 시스템콜 rdx : %d\n" , arg3);    // 반환 값 저장
+
+    switch (system_call_num) {
         case SYS_HALT:
             halt();
             break;
         case SYS_EXIT:
-            exit();
+            exit(arg1);
             break;
-        case SYS_FORK:
-            f->R.rax = fork(f->R.rsi, f);
-            break;
-        case SYS_EXEC:
-            f->R.rax = exec(f->R.rsi);
-            break;
+//        case SYS_FORK:
+//            f->R.rax = fork(f->R.rsi, f);
+//            break;
+//        case SYS_EXEC:
+//            f->R.rax = exec(f->R.rsi);
+//            break;
 //        case SYS_WAIT:
 //            wait();
+//            break;
 //        case SYS_CREATE:
-//            create();
+//            f->R.rax = create(arg1, arg2);
+//            break;
 //        case SYS_REMOVE:
 //            remove();
+//            break;
 //        case SYS_OPEN:
 //            open();
+//            break;
 //        case SYS_FILESIZE:
 //            filesize();
+//            break;
 //        case SYS_READ:
 //            read();
-//        case SYS_WRITE:
-//            write();
+//            break;
+        case SYS_WRITE:
+            f->R.rax = write(arg1, arg2, arg3);
+            break;
 //        case SYS_SEEK:
 //            seek();
+//            break;
 //        case SYS_TELL:
 //            tell();
+//            break;
 //        case SYS_CLOSE:
 //            close();
+//            break;
         default:
             thread_exit ();
             break;
@@ -110,10 +133,9 @@ void exit (int status) {
      * - It should print message "Name of process: exit(status)".
      */
     struct thread *cur = thread_current();
-    /* Save exit status at process desciptor */
     cur->exit_status = status;
 
-    printf("%s : exit(%d)\n", cur->name, status);
+    printf("%s: exit(%d)\n", cur->name, status);
     thread_exit();
 }
 
@@ -131,8 +153,8 @@ int exec (const char *file) {
 
 }
 
-pid_t fork (const char *thread_name, struct intr_frame *f) {
-    return process_fork(thread_name, f)
+int fork (const char *thread_name, struct intr_frame *f) {
+    return process_fork(thread_name, f);
 }
 
 //
@@ -156,49 +178,56 @@ pid_t fork (const char *thread_name, struct intr_frame *f) {
 //
 
 //
-///**
-// * file syscall
-// */
-//bool create (const char *file, unsigned initial_size) {
-//
-//}
-//
-//bool remove (const char *file) {
-//
-//}
-//
-//int open (const char *file) {
-//    /**
-//     * returns fd
-//     */
-//}
-//
-//int filesize (int fd) {
-//
-//}
-//
-//int read (int fd, void *buffer, unsigned length) {
-//
-//}
-//
-//int write (int fd, const void *buffer, unsigned length) {
-//
-//}
-//
-//void seek (int fd, unsigned position) {
-//
-//}
-//
-//unsigned tell (int fd) {
-//
-//}
-//
-//void close (int fd) {
-//    /**
-//     * set 0 at file descriptor entry at index fd
-//     */
-//}
-//
+/**
+ * file syscall
+ */
+bool create (const char *file, unsigned initial_size) {
+
+    return false;
+}
+
+bool remove (const char *file) {
+
+    return false;
+}
+
+int open (const char *file) {
+    /**
+     * returns fd
+     */
+     return 1;
+}
+
+int filesize (int fd) {
+    return 1;
+}
+
+int read (int fd, void *buffer, unsigned length) {
+    return 1;
+}
+
+int write (int fd, const void *buffer, unsigned size) {
+    if (fd == 1) {
+        putbuf(buffer, size);
+        return size;
+    }
+    return -1;
+}
+
+void seek (int fd, unsigned position) {
+
+}
+
+unsigned tell (int fd) {
+
+}
+
+void close (int fd) {
+    /**
+     * set 0 at file descriptor entry at index fd
+     */
+}
+
 //int dup2(int oldfd, int newfd) {
 //
 //}
