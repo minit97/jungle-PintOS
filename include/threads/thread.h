@@ -114,6 +114,8 @@ struct thread {
     struct thread *parent;
     struct list child_list;             // list_push_back
     struct list_elem child_elem;
+    struct file **fdt;
+    int next_fd;
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */

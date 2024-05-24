@@ -13,6 +13,9 @@
 #include "intrinsic.h"
 #include "devices/timer.h"
 #include "threads/fixed_point.c"
+
+#include "lib/stdio.h"          // STDIN_FILENO, STDOUT_FILENO
+
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -220,6 +223,10 @@ thread_create (const char *name, int priority,
 	t->tf.ss = SEL_KDSEG;
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
+
+    // user program - file descripter
+    t->fdt = palloc_get_multiple(PAL_ZERO, 1);  // 한 페이지당 4096 bytes
+    if (t->fdt == NULL) return TID_ERROR;
 
 	/* Add to run queue. */
 	thread_unblock (t);
@@ -441,6 +448,9 @@ init_thread (struct thread *t, const char *name, int priority) {
     t->nice = 0;
     t->recent_cpu = 0;
     if (t != idle_thread) list_push_back(&all_list, &t->all_elem);
+
+    // user program
+    t->next_fd = 2;
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
