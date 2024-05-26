@@ -24,6 +24,9 @@
 #include "vm/vm.h"
 #endif
 
+#define MIN_FD 2
+#define MAX_FD 130
+
 static void process_cleanup(void);
 static bool load(const char *file_name, struct intr_frame *if_);
 static void initd(void *f_name);
@@ -48,8 +51,11 @@ tid_t process_create_initd(const char *file_name) {
   if (fn_copy == NULL) return TID_ERROR;
   strlcpy(fn_copy, file_name, PGSIZE);
 
+  char *rest;
+  char *file_name_copy = strtok_r(file_name, " ", rest);
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create(file_name, PRI_DEFAULT, initd, fn_copy);
+  tid = thread_create(file_name_copy, PRI_DEFAULT, initd, fn_copy);
   if (tid == TID_ERROR) palloc_free_page(fn_copy);
   return tid;
 }
@@ -177,7 +183,7 @@ int process_exec(void *f_name) {
 
   argument_stack(arg_list, count, &_if);
 
-  hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
+  // hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
 
   /* If load failed, quit. */
   palloc_free_page(file_name);
@@ -201,7 +207,7 @@ int process_wait(tid_t child_tid UNUSED) {
   /* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
    * XXX:       to add infinite loop here before
    * XXX:       implementing the process_wait. */
-  while (1) {
+  for (int i = 0; i < 120000000; i++) {
   }
   return -1;
 }
@@ -642,4 +648,39 @@ void argument_stack(char **arg_list, int count, struct intr_frame *if_) {
   if_->R.rdi = count;
   if_->R.rsi = if_->rsp + 8;
   // printf("Set rsi to %p and rdi to %d\n", (void *)if_->R.rsi, if_->R.rdi);
+}
+
+int process_add_file(struct file *file) {
+  struct thread *current_thread = thread_current();
+  struct file **fd_table = current_thread->fd_table;
+
+  int i = MIN_FD;
+
+  while (i < MAX_FD) {
+    if (fd_table[i] == NULL) {
+      fd_table[i] = file;
+      return i;
+    }
+    i++;
+  }
+}
+
+struct file *process_get_file(int fd) {
+  struct thread *curr = thread_current();
+  struct file **fd_table = curr->fd_table;
+
+  if (fd < MIN_FD || fd > MAX_FD) {
+    return NULL;
+  }
+  return fd_table[fd];
+}
+
+void process_close_file(int fd) {
+  struct thread *curr = thread_current();
+  struct file **fdt = curr->fd_table;
+
+  if (fd < MIN_FD || fd > MAX_FD) {
+    return NULL;
+  }
+  fdt[fd] = NULL;
 }
