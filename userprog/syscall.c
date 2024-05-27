@@ -64,14 +64,54 @@ void syscall_init(void) {
 /* The main system call interface */
 void syscall_handler(struct intr_frame *f UNUSED) {
   switch (f->R.rax) {
+    case SYS_HALT:
+      halt();
+      break;
     case SYS_EXIT:
       exit(f->R.rdi);
+      break;
+    // case SYS_FORK:
+    //   f->R.rax = fork(f->R.rdi, f);
+    //   break;
+    // case SYS_EXEC:
+    //   if (exec(f->R.rdi) == -1) {
+    //     exit(-1);
+    //   }
+    //   break;
+    // case SYS_WAIT:
+    //   f->R.rax = process_wait(f->R.rdi);
+    //   break;
+    case SYS_CREATE:
+      f->R.rax = create(f->R.rdi, f->R.rsi);
+      break;
+    case SYS_REMOVE:
+      f->R.rax = remove(f->R.rdi);
+      break;
+    case SYS_OPEN:
+      f->R.rax = open(f->R.rdi);
+      break;
+    case SYS_FILESIZE:
+      f->R.rax = filesize(f->R.rdi);
+      break;
+    case SYS_READ:
+      f->R.rax = read(f->R.rdi, f->R.rsi, f->R.rdx);
       break;
     case SYS_WRITE:
       f->R.rax = write(f->R.rdi, f->R.rsi, f->R.rdx);
       break;
+    case SYS_SEEK:
+      seek(f->R.rdi, f->R.rsi);
+      break;
+    case SYS_TELL:
+      f->R.rax = tell(f->R.rdi);
+      break;
+    case SYS_CLOSE:
+      close(f->R.rdi);
+      break;
+    default:
+      exit(-1);
+      break;
   }
-  // print("system call!") thread_exit();
 }
 
 void check_address(void *addr) {
@@ -83,6 +123,8 @@ void check_address(void *addr) {
 }
 
 int write(int fd, const void *buffer, unsigned size) {
+  check_address(buffer);
+
   if (fd == STDIN_FILENO) {
     return -1;
   }
@@ -100,9 +142,105 @@ int write(int fd, const void *buffer, unsigned size) {
   return (int)file_write(file, buffer, size);
 }
 
+// TODO : 프로그램 종료하는 시스템 ㅋ콜
 void exit(int status) {
   struct thread *curr = thread_current();
   // curr->exit_status = status;
   printf("%s: exit(%d)\n", curr->name, status);
   thread_exit();
+}
+
+void halt(void) { power_off(); }
+
+bool create(const char *file, unsigned initial_size) {
+  check_address(file);
+
+  if (file == NULL || initial_size < 0) {
+    exit(-1);
+  }
+
+  return filesys_create(file, initial_size);
+}
+
+bool remove(const char *file) {
+  check_address(file);
+
+  if (file == NULL) {
+    exit(-1);
+  }
+
+  return filesys_remove(file);
+}
+
+int filesize(int fd) {
+  struct file *file = process_get_file(fd);
+
+  if (file == NULL) {
+    return -1;
+  }
+  return file_length(file);
+}
+
+/*
+fd로 지정된 열린 파일에서 다음 읽기나 쓰기 작업을 시작할 위치를 변경
+position : 파일의 시작점으로부터의 오프셋을 바이트 단위로 나타냄
+*/
+void seek(int fd, unsigned position) {
+  struct file *open_file = process_get_file(fd);
+  if (open_file == NULL) {
+    return;
+  }
+
+  file_seek(open_file, position);
+}
+
+/*
+다음 읽기나 쓰기 작업이 발생할 위치 반환
+파일의 시작점으로부터 오프셋을 바이트 단위로 나타낸다
+*/
+unsigned tell(int fd) {
+  struct file *open_file = process_get_file(fd);
+  if (open_file = NULL) {
+    return;
+  }
+
+  return file_tell(open_file);
+}
+
+/*
+파일의 현 위치에서 데이터를 읽는다
+*/
+int read(int fd, void *buffer, unsigned size) {
+  check_address(buffer);
+
+  if (fd == STDIN_FILENO) {
+    return input_getc();
+  }
+
+  struct file *open_file = process_get_file(fd);
+  if (open_file == NULL) {
+    return -1;
+  }
+  return file_read(open_file, buffer, size);
+}
+
+int open(const char *file_name) {
+  check_address(file_name);
+
+  struct file *open_file = filesys_open(file_name);
+  if (open_file == NULL) {
+    return -1;
+  }
+
+  int fd = process_add_file(open_file);
+  if (fd == -1) file_close(open_file);
+  return fd;
+}
+
+void close(int fd) {
+  struct file *open_file = process_get_file(fd);
+
+  if (open_file == NULL) exit(-1);
+  file_close(open_file);
+  process_close_file(fd);
 }

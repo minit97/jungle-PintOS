@@ -663,6 +663,7 @@ int process_add_file(struct file *file) {
     }
     i++;
   }
+  return -1;
 }
 
 struct file *process_get_file(int fd) {
@@ -683,4 +684,15 @@ void process_close_file(int fd) {
     return NULL;
   }
   fdt[fd] = NULL;
+}
+
+// 자식 리스트를 검색하여 프로세스 디스크립터의 주소 리턴
+struct thread *get_child_process(int pid) {}
+
+// 프로세스 디스크립터를 자식 리스트에서 제거 후 메모리 해제
+void remove_child_process(struct thread *cp) {}
+
+// 자식 프로세스가 종료될 때까지 부모 프로세스 대기
+int process_wait(tid_t child_tid UNUSED){
+  
 }
