@@ -6,10 +6,11 @@
 #include <stdint.h>
 
 #include "threads/interrupt.h"
+#include "threads/synch.h"
 #ifdef VM
 #include "vm/vm.h"
 #endif
-
+#define USERPROG
 /* States in a thread's life cycle. */
 enum thread_status {
   THREAD_RUNNING, /* Running thread. */
@@ -30,6 +31,7 @@ typedef int tid_t;
 #define NICE_DEFAULT 0
 #define RECENT_CPU_DEFAULT 0
 #define LOAD_AVG_DEFAULT 0
+#define FDT_PAGES 2
 
 /* A kernel thread or user process.
  *
@@ -112,6 +114,25 @@ struct thread {
 
   // 파일 디스크립터 테이블
   struct file **fd_table;
+
+  // 부모 프로세스에서 자식 프로세스를 관리하기 위함
+  struct list child_list;
+  struct list_elem child_elem;
+  // 부모 프로세스의 유저 스택 공간을 복사하기 위함
+  struct intr_frame parent_if;
+
+  // exit code
+  int exit_code;
+
+  // 자식 프로세스의 load가 완료될 떄까지 부모를 잠재운다
+  struct semaphore fork_sema;
+  // 자식 프로세스의 종료를 기다린다
+  struct semaphore wait_sema;
+  // 부모 프로세스가 자식 프로세스에서 제거했음을 알린다
+  struct semaphore exit_sema;
+
+  // 열려있는 파일
+  struct file *running;
 
 #ifdef USERPROG
   /* Owned by userprog/process.c. */

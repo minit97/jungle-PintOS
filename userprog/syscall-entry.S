@@ -6,11 +6,11 @@
 syscall_entry:
 	movq %rbx, temp1(%rip)
 	movq %r12, temp2(%rip)     /* callee saved registers */
-	movq %rsp, %rbx            /* Store userland rsp    */
-	movabs $tss, %r12
+	movq %rsp, %rbx            /* userland rsp를 rbx에 임시적으로 저장해둔다 */ 
+	movabs $tss, %r12          /* tss(커널 스택 영역을 가리키는 rsp값)을 꺼낸다*/
 	movq (%r12), %r12
-	movq 4(%r12), %rsp         /* Read ring0 rsp from the tss */
-	/* Now we are in the kernel stack */
+	movq 4(%r12), %rsp         /* tss(커널 스택 영역을 가리키는 rsp값)을 rsp에 저장한다 */
+	/* Now we are in the kernel stack */ 
 	push $(SEL_UDSEG)      /* if->ss */
 	push %rbx              /* if->rsp */
 	push %r11              /* if->eflags */
@@ -36,14 +36,14 @@ syscall_entry:
 	push %r13
 	push %r14
 	push %r15
-	movq %rsp, %rdi
+	movq %rsp, %rdi 
 
 check_intr:
 	btsq $9, %r11          /* Check whether we recover the interrupt */
 	jnb no_sti
 	sti                    /* restore interrupt */
 no_sti:
-	movabs $syscall_handler, %r12
+	movabs $syscall_handler, %r12 /* syscall_handler 함수를 호출한다 */
 	call *%r12
 	popq %r15
 	popq %r14

@@ -28,8 +28,6 @@
    Do not modify this value. */
 #define THREAD_BASIC 0xd42df210
 
-#define FDT_PAGES 2
-
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
@@ -229,12 +227,17 @@ thread_create(const char *name, int priority, thread_func *function,
   t->tf.ss = SEL_KDSEG;
   t->tf.cs = SEL_KCSEG;
   t->tf.eflags = FLAG_IF;
+
+  // fd_table 초기화
   t->fd_table = palloc_get_multiple(PAL_ZERO, FDT_PAGES);
   if (t->fd_table == NULL) return TID_ERROR;
-
-  thread_unblock(t);
   if (name != "idle") list_push_back(&all_list, &t->a_elem);
   struct thread *cur = running_thread();
+
+  // 현 스레드의 자식으로 추가
+  list_push_back(&thread_current()->child_list, &t->child_elem);
+  thread_unblock(t);
+
   if (cur->priority < priority) {
     thread_yield();
   }
@@ -453,6 +456,13 @@ static void init_thread(struct thread *t, const char *name, int priority) {
   t->recent_cpu = RECENT_CPU_DEFAULT;
   list_init(&t->donation);
   t->magic = THREAD_MAGIC;
+
+  list_init(&t->child_list);
+
+  sema_init(&t->fork_sema, 0);
+  sema_init(&t->wait_sema, 0);
+  sema_init(&t->wait_sema, 0);
+  sema_init(&t->exit_sema, 0);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should

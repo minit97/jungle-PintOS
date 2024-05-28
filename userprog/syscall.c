@@ -18,8 +18,6 @@
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *);
 
-void syscall_entry(void);
-void syscall_handler(struct intr_frame *);
 void check_address(void *addr);
 void halt(void);
 void exit(int status);
@@ -35,6 +33,8 @@ void close(int fd);
 tid_t fork(const char *thread_name, struct intr_frame *f);
 int exec(const char *cmd_line);
 int wait(int pid);
+
+int fork(const char *thread_name, struct intr_frame *f);
 
 /* System call.
  *
@@ -62,7 +62,9 @@ void syscall_init(void) {
 }
 
 /* The main system call interface */
-void syscall_handler(struct intr_frame *f UNUSED) {
+void syscall_handler(
+    struct intr_frame *f
+        UNUSED) {  // user level에서의 프로세스 실행 정보(intr_frame)
   switch (f->R.rax) {
     case SYS_HALT:
       halt();
@@ -70,17 +72,17 @@ void syscall_handler(struct intr_frame *f UNUSED) {
     case SYS_EXIT:
       exit(f->R.rdi);
       break;
-    // case SYS_FORK:
-    //   f->R.rax = fork(f->R.rdi, f);
-    //   break;
+    case SYS_FORK:
+      f->R.rax = fork(f->R.rdi, f);
+      break;
     // case SYS_EXEC:
     //   if (exec(f->R.rdi) == -1) {
     //     exit(-1);
     //   }
     //   break;
-    // case SYS_WAIT:
-    //   f->R.rax = process_wait(f->R.rdi);
-    //   break;
+    case SYS_WAIT:
+      f->R.rax = wait(f->R.rdi);
+      break;
     case SYS_CREATE:
       f->R.rax = create(f->R.rdi, f->R.rsi);
       break;
@@ -142,10 +144,10 @@ int write(int fd, const void *buffer, unsigned size) {
   return (int)file_write(file, buffer, size);
 }
 
-// TODO : 프로그램 종료하는 시스템 ㅋ콜
+// TODO : 프로그램 종료하는 시스템 콜
 void exit(int status) {
   struct thread *curr = thread_current();
-  // curr->exit_status = status;
+  curr->exit_code = status;
   printf("%s: exit(%d)\n", curr->name, status);
   thread_exit();
 }
@@ -244,3 +246,9 @@ void close(int fd) {
   file_close(open_file);
   process_close_file(fd);
 }
+
+tid_t fork(const char *thread_name, struct intr_frame *f) {
+  return process_fork(thread_name, f);
+}
+
+int wait(int pid) { return process_wait(pid); }
