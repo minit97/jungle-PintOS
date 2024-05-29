@@ -23,6 +23,7 @@
 #ifdef VM
 #include "vm/vm.h"
 #endif
+#include "threads/thread.h"
 
 #define MIN_FD 2
 #define MAX_FD 130
@@ -32,6 +33,7 @@ static bool load(const char *file_name, struct intr_frame *if_);
 static void initd(void *f_name);
 static void __do_fork(void *);
 static struct thread *get_child_process(int pid);
+void *remove_child_process(struct thread *child);
 
 /* General process initializer for initd and other process. */
 static void process_init(void) { struct thread *current = thread_current(); }
@@ -181,7 +183,6 @@ static void __do_fork(void *aux) {
     }
     current->fd_table[i] = file_duplicate(file);
   }
-
   // FDT, 메모리 복사를 완료한 이후에 sema_up를 하여 부모 프로세스를
   // block에서 깨운다
   sema_up(&current->fork_sema);
@@ -199,7 +200,6 @@ error:
 /* Switch the current execution context to the f_name.
  * Returns -1 on fail. */
 int process_exec(void *f_name) {
-  char *file_name = f_name;
   bool success;
   char *token, *save_file;
   size_t count = 0;
@@ -212,6 +212,15 @@ int process_exec(void *f_name) {
   _if.ds = _if.es = _if.ss = SEL_UDSEG;
   _if.cs = SEL_UCSEG;
   _if.eflags = FLAG_IF | FLAG_MBS;
+
+  char *file_name = palloc_get_page(PAL_USER);
+  if (file_name == NULL) {
+    return TID_ERROR;
+  }
+
+  // 현 프로세스가 리소스가 지워지면서 f_name이 파일의 이름을 가지고 있지 않다
+  // 따라서 복사해주어야 함
+  strlcpy(file_name, f_name, strlen(f_name) + 1);
 
   /* We first kill the current context */
   process_cleanup();
@@ -226,13 +235,16 @@ int process_exec(void *f_name) {
   /* And then load the binary */
   success = load(file_name, &_if);
 
-  argument_stack(arg_list, count, &_if);
+  // printf("============> load  :  %p\n", (void *)_if.rsp);
 
-  // hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
+  if (!success) {
+    palloc_free_page(file_name);
+    return -1;
+  }
+  argument_stack(arg_list, count, &_if);
 
   /* If load failed, quit. */
   palloc_free_page(file_name);
-  if (!success) return -1;
 
   /* Start switched process. */
   do_iret(&_if);
@@ -252,32 +264,33 @@ int process_wait(tid_t child_tid UNUSED) {
   /* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
    * XXX:       to add infinite loop here before
    * XXX:       implementing the process_wait. */
-
   struct thread *child = get_child_process(child_tid);
   if (child == NULL) {
     return -1;
   }
   sema_down(&child->wait_sema);  // 자식이 종료될 때까지 기다린다
+  int exit_status = child->exit_code;
   list_remove(&child->child_elem);  // 자식을 종료한다
-  int ret = child->exit_code;
-  sema_up(&child->exit_sema);  // 자식 상태 정리했음을 자식 스레드에게 전달한다
+  sema_up(&child->exit_sema);       // 자식의 종료 상태를 받았음
 
-  return ret;
+  return exit_status;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
 void process_exit(void) {
   struct thread *curr = thread_current();
 
-  for (int i = 2; i < MAX_FD; i++) {
+  for (int i = 2; i < MAX_FD; i++) {  // fd_talbe를 정리한다
     if (curr->fd_table[i] != NULL) {
       close(i);
     }
   }
   palloc_free_multiple(curr->fd_table, FDT_PAGES);
   process_cleanup();
-  sema_up(&curr->wait_sema);
-  sema_down(&curr->exit_sema);
+  sema_up(&curr->wait_sema);  // 자식 프로세스의 종료를 기다리고 있는 부모
+                              // 프로세스를 깨운다
+  sema_down(&curr->exit_sema);  // 부모 프로세스가 자식 프로세스의 종료 상태를
+                                // 반환받을 때까지 block
 }
 
 /* Free the current process's resources. */
@@ -469,7 +482,7 @@ static bool load(const char *file_name, struct intr_frame *if_) {
 
 done:
   /* We arrive here whether the load is successful or not. */
-  // file_close(file);
+  file_close(file);
   return success;
 }
 
@@ -672,16 +685,16 @@ static bool setup_stack(struct intr_frame *if_) {
 #endif /* VM */
 
 void argument_stack(char **arg_list, int count, struct intr_frame *if_) {
+  // printf("============> arugment stack %s :  %p\n", arg_list[0], if_->rsp);
   char *arg_address[128];
 
+  // printf("test %p\n", if_->rsp);
   for (int i = count - 1; i >= 0; i--) {
     int size = strlen(arg_list[i]) + 1;
 
     if_->rsp = if_->rsp - size;
     memcpy(if_->rsp, arg_list[i], size);
     arg_address[i] = if_->rsp;
-    // printf("Pushed \"%s\" to stack at %p\n", arg_list[i], (void
-    // *)if_->rsp);
   }
 
   while (if_->rsp % 8 != 0) {
@@ -758,4 +771,9 @@ struct thread *get_child_process(int pid) {
   }
 
   return NULL;
+}
+
+// 해당하는 자식 프로세스를 제거
+void *remove_child_process(struct thread *child) {
+  list_remove(&child->child_elem);
 }

@@ -123,7 +123,7 @@ struct thread {
 
   // exit code
   int exit_code;
-
+ 
   // 자식 프로세스의 load가 완료될 떄까지 부모를 잠재운다
   struct semaphore fork_sema;
   // 자식 프로세스의 종료를 기다린다
@@ -191,4 +191,5 @@ void incre_recent_cpu(void);
 void recal_priority(void);
 void recal_recent_cpu(void);
 void cal_load_avg(void);
+
 #endif /* threads/thread.h */

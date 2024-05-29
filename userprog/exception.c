@@ -134,11 +134,23 @@ static void page_fault(struct intr_frame *f) {
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  if (user) {
-    // 사용자의 잘못된 포인터 사용
-    if (!is_user_vaddr(fault_addr) || fault_addr == NULL) {
-      exit(-1);
-    }
+  //   if (user) {
+  //     // 사용자의 잘못된 포인터 사용
+  //     if (!is_user_vaddr(fault_addr) || fault_addr == NULL) {
+  //       exit(-1);
+  //     }
+  //   }
+
+  /* new! 커널 모드일 땐 커널 주소만, 유저 모드일 땐 유저 주소만 읽도록.
+그렇지 않으면 exit 시스템 콜. 덤으로 not_present 도 처리 */
+  if (not_present) { // 프레젠테이션 오류
+    exit(-1);
+  }
+  if (!user && !is_kernel_vaddr(fault_addr)) { // 유저가 아닌데 가상 주소를 읽지 않을 때
+    exit(-1);
+  }
+  if (user && !is_user_vaddr(fault_addr)) { // 유저인데 유저 주소를 읽지 않을 때
+    exit(-1);
   }
 
 #ifdef VM

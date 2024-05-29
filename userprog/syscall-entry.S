@@ -9,7 +9,7 @@ syscall_entry:
 	movq %rsp, %rbx            /* userland rsp를 rbx에 임시적으로 저장해둔다 */ 
 	movabs $tss, %r12          /* tss(커널 스택 영역을 가리키는 rsp값)을 꺼낸다*/
 	movq (%r12), %r12
-	movq 4(%r12), %rsp         /* tss(커널 스택 영역을 가리키는 rsp값)을 rsp에 저장한다 */
+	movq 4(%r12), %rsp         /* tss(커널 스택 영역을 가리키는 rsp값)을 rsp에 저장한다 -> 커널 영역으로 진입 */
 	/* Now we are in the kernel stack */ 
 	push $(SEL_UDSEG)      /* if->ss */
 	push %rbx              /* if->rsp */

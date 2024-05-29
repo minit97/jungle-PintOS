@@ -13,7 +13,7 @@ static __inline int64_t syscall (uint64_t num_, uint64_t a1_, uint64_t a2_,
 	register uint64_t *a4 asm ("r10") = (uint64_t *) a4_;
 	register uint64_t *a5 asm ("r8") = (uint64_t *) a5_;
 	register uint64_t *a6 asm ("r9") = (uint64_t *) a6_;
-
+	// 레지스터에 argument 값츨 넣고 어셈블이어로 syscall을 호출
 	__asm __volatile(
 			"mov %1, %%rax\n"
 			"mov %2, %%rdi\n"
@@ -36,6 +36,9 @@ static __inline int64_t syscall (uint64_t num_, uint64_t a1_, uint64_t a2_,
 
 /* Invokes syscall NUMBER, passing argument ARG0, and returns the
    return value as an `int'. */
+
+// 시스템 호출 번호, 하나의 인수를 받아 시스템 호출을 수행한다
+// 이때 실제 시스템 호출은 syscall에서 진행한다
 #define syscall1(NUMBER, ARG0) ( \
 		syscall(((uint64_t) NUMBER), \
 			((uint64_t) ARG0), 0, 0, 0, 0, 0))
@@ -86,7 +89,7 @@ fork (const char *thread_name){
 }
 
 int
-exec (const char *file) {
+exec (const char *file) { // user program이 exec system call을 호출하면 해당 함수가 먼저 수행
 	return (pid_t) syscall1 (SYS_EXEC, file);
 }
 

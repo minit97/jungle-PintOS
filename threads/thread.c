@@ -231,6 +231,7 @@ thread_create(const char *name, int priority, thread_func *function,
   // fd_table 초기화
   t->fd_table = palloc_get_multiple(PAL_ZERO, FDT_PAGES);
   if (t->fd_table == NULL) return TID_ERROR;
+
   if (name != "idle") list_push_back(&all_list, &t->a_elem);
   struct thread *cur = running_thread();
 
@@ -327,6 +328,7 @@ void thread_exit(void) {
      We will be destroyed during the call to schedule_tail(). */
   intr_disable();
   list_remove(&thread_current()->a_elem);
+  // sema_up(&thread_current()->exit_sema);
   do_schedule(THREAD_DYING);
   NOT_REACHED();
 }
@@ -460,7 +462,6 @@ static void init_thread(struct thread *t, const char *name, int priority) {
   list_init(&t->child_list);
 
   sema_init(&t->fork_sema, 0);
-  sema_init(&t->wait_sema, 0);
   sema_init(&t->wait_sema, 0);
   sema_init(&t->exit_sema, 0);
 }

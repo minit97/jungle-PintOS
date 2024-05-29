@@ -6,6 +6,7 @@
 #include "include/filesys/file.h"
 #include "include/filesys/filesys.h"
 #include "include/lib/stdio.h"
+#include "include/threads/palloc.h"
 #include "include/userprog/process.h"
 #include "intrinsic.h"
 #include "threads/flags.h"
@@ -75,11 +76,9 @@ void syscall_handler(
     case SYS_FORK:
       f->R.rax = fork(f->R.rdi, f);
       break;
-    // case SYS_EXEC:
-    //   if (exec(f->R.rdi) == -1) {
-    //     exit(-1);
-    //   }
-    //   break;
+    case SYS_EXEC:
+      f->R.rax = exec(f->R.rdi);
+      break;
     case SYS_WAIT:
       f->R.rax = wait(f->R.rdi);
       break;
@@ -144,10 +143,10 @@ int write(int fd, const void *buffer, unsigned size) {
   return (int)file_write(file, buffer, size);
 }
 
-// TODO : 프로그램 종료하는 시스템 콜
 void exit(int status) {
   struct thread *curr = thread_current();
-  curr->exit_code = status;
+  curr->exit_code =
+      status;  // 이 값을 통해 부모 프로세스는 자식 프로세스가 종료되었는지 확인
   printf("%s: exit(%d)\n", curr->name, status);
   thread_exit();
 }
@@ -247,8 +246,18 @@ void close(int fd) {
   process_close_file(fd);
 }
 
-tid_t fork(const char *thread_name, struct intr_frame *f) {
+tid_t fork(const char *thread_name, struct intr_frame *f) { // 유저 영역 인터럽트 프레임
   return process_fork(thread_name, f);
 }
 
 int wait(int pid) { return process_wait(pid); }
+
+int exec(const char *cmd_line) {
+  check_address(cmd_line);
+
+  if (process_exec(cmd_line) == -1) {
+    exit(-1);
+  }
+
+  NOT_REACHED(); // exec 성공 시 해당 코드는 실행될 수 없다
+}
