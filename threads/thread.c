@@ -225,7 +225,10 @@ thread_create (const char *name, int priority,
 	t->tf.eflags = FLAG_IF;
 
     // user program - file descripter
-    t->fdt = palloc_get_multiple(PAL_ZERO, 1);  // 한 페이지당 4096 bytes
+    t->fdt = palloc_get_multiple(PAL_ZERO, 3);  // 한 페이지당 4096 bytes
+    t->fdt[0] = 1;
+    t->fdt[1] = 2;
+    t->next_fd = 2;
     if (t->fdt == NULL) return TID_ERROR;
 
     // 현재 스레드의 자식으로 추가
@@ -453,7 +456,6 @@ init_thread (struct thread *t, const char *name, int priority) {
     if (t != idle_thread) list_push_back(&all_list, &t->all_elem);
 
     // user program
-    t->next_fd = 2;
     list_init (&t->child_list);
     sema_init(&t->load_sema, 0);
     sema_init(&t->exit_sema, 0);

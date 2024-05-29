@@ -203,29 +203,25 @@ int open (const char *file) {
      */
     check_address(file);
 
-    lock_acquire(&filesys_lock);
     struct file *opened_file = filesys_open (file);
-    if (opened_file == NULL) {
-        lock_release(&filesys_lock);
-        return -1;
-    }
+    if (opened_file == NULL) return -1;
 
     struct thread *curr = thread_current();
     struct file **fdt = curr->fdt;
-    while(curr->next_fd <= 64){
+    while(curr->next_fd <= 130){
         if (fdt[curr->next_fd] == NULL) {
             fdt[curr->next_fd] = opened_file;
-            lock_release(&filesys_lock);
             return curr->next_fd;
         }
         curr->next_fd++;
     }
-    lock_release(&filesys_lock);
+
+    file_close(opened_file);
     return -1;
 }
 
 int filesize (int fd) {
-    if (fd < 2 || fd >= 64) return -1;
+    if (fd < 2 || fd > 130) return -1;
 
     struct thread *curr = thread_current();
     struct file **fdt = curr->fdt;
@@ -244,27 +240,23 @@ int read (int fd, void *buffer, unsigned size) {
      */
     check_address(buffer);
 
-    lock_acquire(&filesys_lock);
+    int result;
     if (fd == STDIN_FILENO) {
         input_getc();
-        lock_release(&filesys_lock);
         return size;
     }
-    if (fd < 2 || fd > 64) {
-        lock_release(&filesys_lock);
-        return -1;
-    }
+    if (fd < 2 || fd > 130) return -1;
 
     struct thread *curr = thread_current();
     struct file **fdt = curr->fdt;
     struct file *file = fdt[fd];
-    if (file == NULL) {
-        lock_release(&filesys_lock);
-        return -1;
-    }
+    if (file == NULL) return -1;
 
-    lock_release(&filesys_lock);
-    return file_read(file, buffer, size);
+//    lock_acquire(&filesys_lock);
+    result = file_read(file, buffer, size);
+//    lock_release(&filesys_lock);
+
+    return result;
 }
 
 int write (int fd, const void *buffer, unsigned size) {
@@ -275,13 +267,13 @@ int write (int fd, const void *buffer, unsigned size) {
      * 3. others : file find by fd and call file_write
      */
     check_address(buffer);
-
+    int result;
     if (fd == STDOUT_FILENO) {
         putbuf(buffer, size);
         return size;
     }
 
-    if (fd < 2 || fd > 64) {
+    if (fd < 2 || fd > 130) {
         return -1;
     }
 
@@ -292,14 +284,18 @@ int write (int fd, const void *buffer, unsigned size) {
         return -1;
     }
 
-    return file_write(file, buffer, size);
+//    lock_acquire(&filesys_lock);
+    result = file_write(file, buffer, size);
+//    lock_release(&filesys_lock);
+
+    return result;
 }
 
 void seek (int fd, unsigned position) {
     /**
      * Changes the next byte to be read or written in open file fd to position
      */
-    if (fd < 2 || fd >= 64) return;
+    if (fd < 2 || fd > 130) return;
 
     struct thread *curr = thread_current();
     struct file **fdt = curr->fdt;
@@ -313,7 +309,7 @@ unsigned tell (int fd) {
     /**
      * Return the position of the next byte to be read or written in open file fd
      */
-    if (fd < 2 || fd >= 64) return;
+    if (fd < 2 || fd > 130) return -1;
 
     struct thread *curr = thread_current();
     struct file **fdt = curr->fdt;
@@ -327,7 +323,7 @@ void close (int fd) {
     /**
      * set 0 at file descriptor entry at index fd
      */
-    if (fd < 2 || fd >= 64) return;
+    if (fd < 2 || fd > 130) return;
 
     struct thread *curr = thread_current();
     struct file **fdt = curr->fdt;

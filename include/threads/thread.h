@@ -116,7 +116,6 @@ struct thread {
     struct file **fdt;
     int next_fd;
 
-    struct thread *parent;              // 부모 프로세스
     struct intr_frame parent_if;
     struct list child_list;             // 자식 리스트
     struct list_elem child_elem;        // 자식 리스트 element

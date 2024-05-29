@@ -139,23 +139,27 @@ __do_fork (void *aux) {
      * TODO:       in include/filesys/file.h. Note that parent should not return
      * TODO:       from the fork() until this function successfully duplicates
      * TODO:       the resources of parent.*/
-    for (int i = 2; i < 64; i++) {
+    current->fdt[0] = parent->fdt[0];
+    current->fdt[1] = parent->fdt[1];
+    for (int i = 2; i <= 130; i++) {
         struct file *file = parent->fdt[i];
-        if (file == NULL)
-            continue;
+        if (file == NULL) continue;
         current->fdt[i] = file_duplicate(file);
     }
 
     current->next_fd = parent->next_fd;
-
     sema_up(&current->load_sema);   // 로드가 완료될 때까지 기다리고 있던 부모 대기 해제
+
     process_init ();
 
     /* Finally, switch to the newly created process. */
     if (succ)
         do_iret (&if_);
     error:
-    thread_exit ();
+        current->exit_status = TID_ERROR;
+        sema_up(&current->load_sema);
+        exit(TID_ERROR);
+//        thread_exit ();
 }
 
 #ifndef VM
@@ -220,7 +224,7 @@ int process_exec (void *f_name) {   // start_process()
      * 1. Parse file_name
      */
     char *token, *save_ptr;
-    char *argv[64];
+    char *argv[130];
     int argc = 0;
     for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
         argv[argc++] = token;
@@ -228,9 +232,11 @@ int process_exec (void *f_name) {   // start_process()
 
 	/* And then load the binary */
     // file_name : program name | &if_.rip : Function entry point | &if_.rsp : Stack top(user stack)
-//    lock_acquire(&filesys_lock);
-	success = load (argv[0], &_if);
-//    lock_release(&filesys_lock);
+    lock_acquire(&filesys_lock);
+    printf("체크11");
+    success = load (argv[0], &_if);
+    printf("체크22");
+    lock_release(&filesys_lock);
 
     /** PHM
      * 2. Save tokens on user stack of new process
@@ -271,7 +277,7 @@ process_wait (tid_t child_tid UNUSED) {     // The OS quits without waiting for 
     list_remove(&child->child_elem);
 
     // 자식 종료 후 스케줄링을 위해 자식에 signal 전달
-//    sema_up(&child->exit_sema);
+    sema_up(&child->exit_sema);
 
     return child->exit_status;
 }
@@ -284,16 +290,15 @@ process_exit (void) {
 	 * TODO: Implement process termination message (see
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
-    for (int i = 2; i < 64; i++)
+    for (int i = 2; i <= 130; i++)
         close(i);
-    palloc_free_page(curr->fdt);
-    file_close(curr->running);      // 현재 실행 중인 파일을 닫는다.
 
-	process_cleanup ();
-//    hash_destroy(&cur->spt.spt_hash, NULL); // todo 🚨
+    palloc_free_multiple(curr->fdt, 3);
+    file_close(curr->running);      // 현재 실행 중인 파일을 닫는다.
+    process_cleanup ();
 
     sema_up(&curr->wait_sema);      // 자식 종료를 대기하고 있는 부모에게 signal 전달
-//    sema_down(&curr->exit_sema);    // 부모의 signal 대기, 대기가 풀리면 do_schedule(THREAD_DYING) 후 다른 스레드 실행
+    sema_down(&curr->exit_sema);    // 부모의 signal 대기, 대기가 풀리면 do_schedule(THREAD_DYING) 후 다른 스레드 실행
 }
 
 /* Free the current process's resources. */
@@ -435,6 +440,8 @@ load (const char *file_name, struct intr_frame *if_) {
 		printf ("load: %s: open failed\n", file_name);
 		goto done;
 	}
+    t->running = file;          // 스레드가 삭제될 때 파일을 닫을 수 있게 구조체에 파일을 저장해둔다.
+//    file_deny_write(file);      // 현재 실행중인 파일은 수정할 수 없게 막는다.
 
 	/* Read and verify executable header. */
     /**
@@ -509,18 +516,12 @@ load (const char *file_name, struct intr_frame *if_) {
 		}
 	}
 
-    t->running = file;          // 스레드가 삭제될 때 파일을 닫을 수 있게 구조체에 파일을 저장해둔다.
-    file_deny_write(file);      // 현재 실행중인 파일은 수정할 수 없게 막는다.
-
 	/* Set up stack. */
 	if (!setup_stack (if_))     // initializing use stack, rsp : 스택 포인터 주소
 		goto done;
 
 	/* Start address. */
 	if_->rip = ehdr.e_entry;    // initialize entry point, rip : text 세그먼트 시작 주소
-
-	/* TODO: Your code goes here.
-	 * TODO: Implement argument passing (see project2/argument_passing.html). */
 
 	success = true;
 
