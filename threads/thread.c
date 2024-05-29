@@ -137,7 +137,7 @@ thread_start (void) {
 	/* Create the idle thread. */
 	struct semaphore idle_started;
 	sema_init (&idle_started, 0);
-	thread_create ("idle", PRI_MIN, idle, &idle_started);
+    thread_create ("idle", PRI_MIN, idle, &idle_started);
 
 	/* Start preemptive thread scheduling. */
 	intr_enable ();
@@ -227,6 +227,9 @@ thread_create (const char *name, int priority,
     // user program - file descripter
     t->fdt = palloc_get_multiple(PAL_ZERO, 1);  // 한 페이지당 4096 bytes
     if (t->fdt == NULL) return TID_ERROR;
+
+    // 현재 스레드의 자식으로 추가
+    list_push_back(&thread_current()->child_list, &t->child_elem);
 
 	/* Add to run queue. */
 	thread_unblock (t);
@@ -451,6 +454,10 @@ init_thread (struct thread *t, const char *name, int priority) {
 
     // user program
     t->next_fd = 2;
+    list_init (&t->child_list);
+    sema_init(&t->load_sema, 0);
+    sema_init(&t->exit_sema, 0);
+    sema_init(&t->wait_sema, 0);
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should
@@ -461,7 +468,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 static struct thread *
 next_thread_to_run (void) {
 	if (list_empty (&ready_list))
-		return idle_thread;
+        return idle_thread;
 	else
 		return list_entry (list_pop_front (&ready_list), struct thread, elem);
 }

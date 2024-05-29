@@ -9,6 +9,8 @@
 #include "vm/vm.h"
 #endif
 
+#include "threads/synch.h"
+
 
 /* States in a thread's life cycle. */
 enum thread_status {
@@ -91,6 +93,9 @@ struct thread {
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
 
+    /* Shared between thread.c and synch.c. */
+    struct list_elem elem;              /* List element. */
+
     // Alarm Clock
     int64_t wakeup_tick;                /* tick till wake up */
 
@@ -106,16 +111,21 @@ struct thread {
     int recent_cpu;                     /* from 0 to 4 */
     struct list_elem all_elem;
 
-	/* Shared between thread.c and synch.c. */
-	struct list_elem elem;              /* List element. */
-
     // user program
-    int exit_status;
-    struct thread *parent;
-    struct list child_list;             // list_push_back
-    struct list_elem child_elem;
+    int exit_status;                    // exit 호출 시 종료 status
     struct file **fdt;
     int next_fd;
+
+    struct thread *parent;              // 부모 프로세스
+    struct intr_frame parent_if;
+    struct list child_list;             // 자식 리스트
+    struct list_elem child_elem;        // 자식 리스트 element
+
+    struct semaphore load_sema;
+    struct semaphore exit_sema;         // exit 세마포어
+    struct semaphore wait_sema;         // load 세마포어
+
+    struct file *running;               // 현재 실행 중인 파일
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */

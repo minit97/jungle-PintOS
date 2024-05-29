@@ -31,7 +31,7 @@ struct gp_registers {
 	uint64_t rdx;
 	uint64_t rcx;
 	uint64_t rbx;
-	uint64_t rax;
+	uint64_t rax;       // 함수의 반환 값 저장
 } __attribute__((packed));
 
 struct intr_frame {

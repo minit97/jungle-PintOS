@@ -9,16 +9,20 @@
 #include "threads/init.h"
 #include "intrinsic.h"
 
-#include "kernel/stdio.h"           // putbuf
 #include "lib/stdio.h"              // STDIN_FILENO, STDOUT_FILENO
+#include "lib/string.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "threads/synch.h"          // lock_init()
+#include "threads/palloc.h"
 #include "userprog/process.h"
 #include "devices/input.h"
+#include "kernel/stdio.h"           // putbuf
+
 
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
+int kernel_fork (const char *thread_name, struct intr_frame *f);
 
 /* System call.
  *
@@ -44,6 +48,7 @@ syscall_init (void) {
 	 * mode stack. Therefore, we masked the FLAG_FL. */
 	write_msr(MSR_SYSCALL_MASK,
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
+    lock_init(&filesys_lock);
 }
 
 /* The main system call interface */
@@ -74,7 +79,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
             exit(f->R.rdi);
             break;
         case SYS_FORK:
-            f->R.rax = fork(f->R.rdi, f);
+            f->R.rax = kernel_fork(f->R.rdi, f);
             break;
         case SYS_EXEC:
             f->R.rax = exec(f->R.rdi);
@@ -141,20 +146,22 @@ void exit (int status) {
 
 int exec (const char *cmd_line) {
     /**
-     * - Create child process and execute program corresponds to cmd_line on it
-     *
-     * - Run program which execute cmd_line
-     * - Create thread and run. exec() in pintos is equivalent to fork() + exec() in Unix
-     * - Pass the arguments to the program to be executed
-     * - Return pid of the new child process
-     * - If it fails to load the program or to create a process, return -1
-     * - Parent process calling exec should wait until child process is created  and loads the executable completely
+     * process_execute() 함수를 호출하여 자식 프로세스 생성
+     * 생성된 자식 프로세스의 프로세스 디스크립터를 검색
+     * 자식 프로세스의 프로그램이 적재될 때까지 대기
+     * 프로그램 적재 실패 시 -1, 성공 시 자식 프로세스의 pid 리턴
      */
-    check_address(cmd_line);
-    return process_exec(cmd_line);
+    char *cmd_line_copy;
+    cmd_line_copy = palloc_get_page(0);
+    if (cmd_line_copy == NULL)
+        exit(-1);							  // 메모리 할당 실패 시 status -1로 종료한다.
+    strlcpy(cmd_line_copy, cmd_line, PGSIZE);           // cmd_line을 복사한다.
+
+    // 스레드의 이름을 변경하지 않고 바로 실행한다.
+    return process_exec(cmd_line_copy);
 }
 
-int fork (const char *thread_name, struct intr_frame *f) {
+int kernel_fork (const char *thread_name, struct intr_frame *f) {
     return process_fork(thread_name, f);
 }
 
@@ -195,8 +202,11 @@ int open (const char *file) {
      * returns fd
      */
     check_address(file);
+
+    lock_acquire(&filesys_lock);
     struct file *opened_file = filesys_open (file);
     if (opened_file == NULL) {
+        lock_release(&filesys_lock);
         return -1;
     }
 
@@ -205,10 +215,12 @@ int open (const char *file) {
     while(curr->next_fd <= 64){
         if (fdt[curr->next_fd] == NULL) {
             fdt[curr->next_fd] = opened_file;
+            lock_release(&filesys_lock);
             return curr->next_fd;
         }
         curr->next_fd++;
     }
+    lock_release(&filesys_lock);
     return -1;
 }
 
@@ -231,17 +243,27 @@ int read (int fd, void *buffer, unsigned size) {
      * 3. others : file find by fd and call file_read
      */
     check_address(buffer);
+
+    lock_acquire(&filesys_lock);
     if (fd == STDIN_FILENO) {
         input_getc();
+        lock_release(&filesys_lock);
         return size;
     }
-    if (fd < 2 || fd > 64) return -1;
+    if (fd < 2 || fd > 64) {
+        lock_release(&filesys_lock);
+        return -1;
+    }
 
     struct thread *curr = thread_current();
     struct file **fdt = curr->fdt;
     struct file *file = fdt[fd];
-    if (file == NULL) return -1;
+    if (file == NULL) {
+        lock_release(&filesys_lock);
+        return -1;
+    }
 
+    lock_release(&filesys_lock);
     return file_read(file, buffer, size);
 }
 
@@ -259,12 +281,16 @@ int write (int fd, const void *buffer, unsigned size) {
         return size;
     }
 
-    if (fd < 2 || fd > 64) return -1;
+    if (fd < 2 || fd > 64) {
+        return -1;
+    }
 
     struct thread *curr = thread_current();
     struct file **fdt = curr->fdt;
     struct file *file = fdt[fd];
-    if (file == NULL) return -1;
+    if (file == NULL) {
+        return -1;
+    }
 
     return file_write(file, buffer, size);
 }
@@ -313,12 +339,17 @@ void close (int fd) {
 }
 
 void check_address(void *addr) {
+    /**
+     * 주소 값이 유저 영역에서 사용하는 주소 값인지 확인하는 함수
+     * PintOS에서는 시스템 콜이 접근할 수 있는 주소를 0x8048000 ~ 0xc0000000으로 제한함
+     * 유저 영역을 벗어난 영역일 경우 프로세스 종료 exit(-1)
+     */
     if (addr == NULL)
         exit(-1);
+    // 포인터가 가리키는 주소가 유저영역의 주소인지 확인
     if (!is_user_vaddr(addr))
         exit(-1);
-
-    // 해당 페이지맵은 커널 가상 주소에 대한 매핑을 가지고 있지만, 사용자 가상 주소에 대한 매핑은 없다.
+    // 해당 페이지맵은 커널 가상 주소에 대한 매핑을 가지고 있지만, 사용 주소에 대한 매핑은 없다.
     if (pml4_get_page(thread_current()->pml4, addr) == NULL)
         exit(-1);
 }

@@ -7,10 +7,10 @@
 
 void syscall_init (void);
 
-void halt (void) NO_RETURN;
-void exit (int status) NO_RETURN;
+void halt (void);
+void exit (int status);
 int exec (const char *cmd_line);
-//int fork (const char *thread_name, struct intr_frame *f);
+//int kernel_fork (const char *thread_name, struct intr_frame *f);
 int wait (int pid);
 bool create (const char *file, unsigned initial_size);
 bool remove (const char *file);
@@ -23,4 +23,6 @@ unsigned tell (int fd);
 void close (int fd);
 
 void check_address(void *addr);
+
+struct lock filesys_lock;
 #endif /* userprog/syscall.h */
