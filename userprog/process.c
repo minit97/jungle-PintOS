@@ -280,11 +280,15 @@ int process_wait(tid_t child_tid UNUSED) {
 void process_exit(void) {
   struct thread *curr = thread_current();
 
-  for (int i = 2; i < MAX_FD; i++) {  // fd_talbe를 정리한다
+  for (int i = 2; i < MAX_FD; i++) {  // fd_table를 정리한다
     if (curr->fd_table[i] != NULL) {
       close(i);
     }
   }
+
+  // 프로세스가 실행이 되었다는 것은 어떤 파일을 무조건 exec 하고 있다는 뜻이다.
+  // 즉 항상 null 이 아니다 따라서 null을 체크할 필요가 없다
+  file_close(curr->exec_file);
   palloc_free_multiple(curr->fd_table, FDT_PAGES);
   process_cleanup();
   sema_up(&curr->wait_sema);  // 자식 프로세스의 종료를 기다리고 있는 부모
@@ -412,6 +416,12 @@ static bool load(const char *file_name, struct intr_frame *if_) {
     goto done;
   }
 
+  /* 실행 중인 파일은 변경할 수 없다. 따라서 실행할 파일을 열 때 실행중인 파일을
+   * 설정한다 */
+  t->exec_file = file;
+  file_deny_write(file);
+  
+
   /* Read and verify executable header. */
   if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr ||
       memcmp(ehdr.e_ident, "\177ELF\2\1\1", 7) || ehdr.e_type != 2 ||
@@ -482,7 +492,7 @@ static bool load(const char *file_name, struct intr_frame *if_) {
 
 done:
   /* We arrive here whether the load is successful or not. */
-  file_close(file);
+  // file_close(file); // file load 완료 후에 바로 write를 허용하지 않아야 한다
   return success;
 }
 

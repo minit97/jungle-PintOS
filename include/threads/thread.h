@@ -31,7 +31,7 @@ typedef int tid_t;
 #define NICE_DEFAULT 0
 #define RECENT_CPU_DEFAULT 0
 #define LOAD_AVG_DEFAULT 0
-#define FDT_PAGES 2
+#define FDT_PAGES 3
 
 /* A kernel thread or user process.
  *
@@ -123,7 +123,7 @@ struct thread {
 
   // exit code
   int exit_code;
- 
+
   // 자식 프로세스의 load가 완료될 떄까지 부모를 잠재운다
   struct semaphore fork_sema;
   // 자식 프로세스의 종료를 기다린다
@@ -131,8 +131,8 @@ struct thread {
   // 부모 프로세스가 자식 프로세스에서 제거했음을 알린다
   struct semaphore exit_sema;
 
-  // 열려있는 파일
-  struct file *running;
+  // 실행중인 파일
+  struct file *exec_file;
 
 #ifdef USERPROG
   /* Owned by userprog/process.c. */

@@ -37,6 +37,8 @@ int wait(int pid);
 
 int fork(const char *thread_name, struct intr_frame *f);
 
+struct lock filesys_lock;  // 파일 점유 시 필요한 락
+
 /* System call.
  *
  * Previously system call services was handled by the interrupt handler
@@ -60,6 +62,7 @@ void syscall_init(void) {
    * mode stack. Therefore, we masked the FLAG_FL. */
   write_msr(MSR_SYSCALL_MASK,
             FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
+  lock_init(&filesys_lock);
 }
 
 /* The main system call interface */
@@ -124,6 +127,7 @@ void check_address(void *addr) {
 }
 
 int write(int fd, const void *buffer, unsigned size) {
+  int write_bytes = 0;
   check_address(buffer);
 
   if (fd == STDIN_FILENO) {
@@ -139,8 +143,11 @@ int write(int fd, const void *buffer, unsigned size) {
   if (file == NULL) {
     return -1;
   }
+  lock_acquire(&filesys_lock);
+  write_bytes = (int)file_write(file, buffer, size);
+  lock_release(&filesys_lock);
 
-  return (int)file_write(file, buffer, size);
+  return write_bytes;
 }
 
 void exit(int status) {
@@ -212,6 +219,7 @@ unsigned tell(int fd) {
 파일의 현 위치에서 데이터를 읽는다
 */
 int read(int fd, void *buffer, unsigned size) {
+  int read_bytes = 0;
   check_address(buffer);
 
   if (fd == STDIN_FILENO) {
@@ -222,19 +230,26 @@ int read(int fd, void *buffer, unsigned size) {
   if (open_file == NULL) {
     return -1;
   }
-  return file_read(open_file, buffer, size);
+  lock_acquire(&filesys_lock);
+  read_bytes = file_read(open_file, buffer, size);
+  lock_release(&filesys_lock);
+
+  return read_bytes;
 }
 
 int open(const char *file_name) {
   check_address(file_name);
 
+  lock_acquire(&filesys_lock);
   struct file *open_file = filesys_open(file_name);
   if (open_file == NULL) {
+    lock_release(&filesys_lock);
     return -1;
   }
 
   int fd = process_add_file(open_file);
   if (fd == -1) file_close(open_file);
+  lock_release(&filesys_lock);
   return fd;
 }
 
@@ -246,7 +261,8 @@ void close(int fd) {
   process_close_file(fd);
 }
 
-tid_t fork(const char *thread_name, struct intr_frame *f) { // 유저 영역 인터럽트 프레임
+tid_t fork(const char *thread_name,
+           struct intr_frame *f) {  // 유저 영역 인터럽트 프레임
   return process_fork(thread_name, f);
 }
 
@@ -259,5 +275,5 @@ int exec(const char *cmd_line) {
     exit(-1);
   }
 
-  NOT_REACHED(); // exec 성공 시 해당 코드는 실행될 수 없다
+  NOT_REACHED();  // exec 성공 시 해당 코드는 실행될 수 없다
 }
