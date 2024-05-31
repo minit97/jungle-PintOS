@@ -233,9 +233,9 @@ int process_exec (void *f_name) {   // start_process()
 	/* And then load the binary */
     // file_name : program name | &if_.rip : Function entry point | &if_.rsp : Stack top(user stack)
     lock_acquire(&filesys_lock);
-    printf("체크11");
+//    printf("load 전 \n");
     success = load (argv[0], &_if);
-    printf("체크22");
+//    printf("load 후 \n");
     lock_release(&filesys_lock);
 
     /** PHM
@@ -250,6 +250,8 @@ int process_exec (void *f_name) {   // start_process()
     */
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
+    // sema_up(&global_sema);
+
 	if (!success)
         return -1;
 	/* Start switched process. */

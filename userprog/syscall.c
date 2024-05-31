@@ -49,6 +49,7 @@ syscall_init (void) {
 	write_msr(MSR_SYSCALL_MASK,
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
     lock_init(&filesys_lock);
+    // sema_init(&global_sema, 1);
 }
 
 /* The main system call interface */
@@ -158,6 +159,7 @@ int exec (const char *cmd_line) {
     strlcpy(cmd_line_copy, cmd_line, PGSIZE);           // cmd_line을 복사한다.
 
     // 스레드의 이름을 변경하지 않고 바로 실행한다.
+    // sema_down(&thread_current()->load_sema);
     return process_exec(cmd_line_copy);
 }
 
@@ -203,6 +205,7 @@ int open (const char *file) {
      */
     check_address(file);
 
+//    lock_acquire(&filesys_lock);
     struct file *opened_file = filesys_open (file);
     if (opened_file == NULL) return -1;
 
@@ -211,6 +214,7 @@ int open (const char *file) {
     while(curr->next_fd <= 130){
         if (fdt[curr->next_fd] == NULL) {
             fdt[curr->next_fd] = opened_file;
+//            lock_release(&filesys_lock);
             return curr->next_fd;
         }
         curr->next_fd++;
@@ -252,9 +256,9 @@ int read (int fd, void *buffer, unsigned size) {
     struct file *file = fdt[fd];
     if (file == NULL) return -1;
 
-//    lock_acquire(&filesys_lock);
+    lock_acquire(&filesys_lock);
     result = file_read(file, buffer, size);
-//    lock_release(&filesys_lock);
+    lock_release(&filesys_lock);
 
     return result;
 }
@@ -284,9 +288,9 @@ int write (int fd, const void *buffer, unsigned size) {
         return -1;
     }
 
-//    lock_acquire(&filesys_lock);
+    lock_acquire(&filesys_lock);
     result = file_write(file, buffer, size);
-//    lock_release(&filesys_lock);
+    lock_release(&filesys_lock);
 
     return result;
 }
