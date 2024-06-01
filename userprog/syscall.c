@@ -205,7 +205,6 @@ int open (const char *file) {
      */
     check_address(file);
 
-//    lock_acquire(&filesys_lock);
     struct file *opened_file = filesys_open (file);
     if (opened_file == NULL) return -1;
 
@@ -214,7 +213,6 @@ int open (const char *file) {
     while(curr->next_fd <= 130){
         if (fdt[curr->next_fd] == NULL) {
             fdt[curr->next_fd] = opened_file;
-//            lock_release(&filesys_lock);
             return curr->next_fd;
         }
         curr->next_fd++;
@@ -353,8 +351,3 @@ void check_address(void *addr) {
     if (pml4_get_page(thread_current()->pml4, addr) == NULL)
         exit(-1);
 }
-
-
-//int dup2(int oldfd, int newfd) {
-//
-//}
