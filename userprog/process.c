@@ -220,26 +220,9 @@ int process_exec (void *f_name) {   // start_process()
 	/* We first kill the current context */
 	process_cleanup ();
 
-    /** PHM
-     * 1. Parse file_name
-     */
-    char *token, *save_ptr;
-    char *argv[130];
-    int argc = 0;
-    for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
-        argv[argc++] = token;
-    }
-
 	/* And then load the binary */
     // file_name : program name | &if_.rip : Function entry point | &if_.rsp : Stack top(user stack)
     success = load (argv[0], &_if);
-
-    /** PHM
-     * 2. Save tokens on user stack of new process
-     */
-    argument_stack(argv, argc, &_if.rsp);
-    _if.R.rdi = argc;               // argc: main함수가 받은 인자의 수
-    _if.R.rsi = _if.rsp + 8;        // argv: main 함수가 받은 각각의 인자들
 
     /**
     * 메모리 적재 완료 시 부모 프로세스 다시 진행 (세마포어 이용)
@@ -415,6 +398,16 @@ load (const char *file_name, struct intr_frame *if_) {
 	bool success = false;
 	int i;
 
+    /** PHM
+    * 1. Parse file_name
+    */
+    char *token, *save_ptr;
+    char *argv[130];
+    int argc = 0;
+    for (token = strtok_r(file_name, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
+        argv[argc++] = token;
+    }
+
 	/* Allocate and activate page directory. */
     /**
      * create page directory
@@ -432,7 +425,7 @@ load (const char *file_name, struct intr_frame *if_) {
 	process_activate (thread_current ());
 
 	/* Open executable file. */
-	file = filesys_open (file_name);    // 프로그램 파일 open
+	file = filesys_open (argv[0]);    // 프로그램 파일 open
 	if (file == NULL) {
 		printf ("load: %s: open failed\n", file_name);
 		goto done;
@@ -519,6 +512,13 @@ load (const char *file_name, struct intr_frame *if_) {
 
 	/* Start address. */
 	if_->rip = ehdr.e_entry;    // initialize entry point, rip : text 세그먼트 시작 주소
+
+    /** PHM
+     * 2. Save tokens on user stack of new process
+     */
+    argument_stack(argv, argc, &_if.rsp);
+    _if.R.rdi = argc;               // argc: main함수가 받은 인자의 수
+    _if.R.rsi = _if.rsp + 8;        // argv: main 함수가 받은 각각의 인자들
 
 	success = true;
 
@@ -792,11 +792,4 @@ struct thread *get_child_process (int pid) {
          }
      }
      return NULL;
-}
-
-void remove_child_process (struct thread *cp) {
-    /**
-     * 자식 리스트에서 제거
-     * 프로세스 디스크립터 메모리 해제
-     */
 }
