@@ -78,9 +78,9 @@ static void anon_destroy (struct page *page) {
     disk_sector_t index = anon_page->index;
 
     if (page->frame != NULL) {
-        lock_acquire(&frame_lock);
+//        lock_acquire(&frame_lock);
         list_remove(&page->frame->frame_elem);
-        lock_release(&frame_lock);
+//        lock_release(&frame_lock);
 
         free(page->frame);
     }

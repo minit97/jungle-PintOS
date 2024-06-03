@@ -636,8 +636,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage, uint32_t
 }
 
 /* Create a minimal stack by mapping a zeroed page at the USER_STACK */
-static bool
-setup_stack (struct intr_frame *if_) {
+static bool setup_stack (struct intr_frame *if_) {
 	uint8_t *kpage;
 	bool success = false;
 
@@ -730,7 +729,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage, uint32_t
 		container->read_bytes = page_read_bytes;
 		container->offset = ofs;
 
-		if (!vm_alloc_page_with_initializer (VM_ANON, upage, writable, lazy_load_segment, aux)) {
+		if (!vm_alloc_page_with_initializer (VM_ANON, upage, writable, lazy_load_segment, container)) {
 			return false;
         }
 
@@ -738,6 +737,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage, uint32_t
 		read_bytes -= page_read_bytes;
 		zero_bytes -= page_zero_bytes;
 		upage += PGSIZE;
+        ofs += page_read_bytes;
 	}
 	return true;
 }

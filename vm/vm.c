@@ -3,9 +3,11 @@
 #include "threads/malloc.h"
 #include "vm/vm.h"
 #include "vm/inspect.h"
+#include "vm/file.h"
+
 #include "threads/vaddr.h"
-#include "threads/mmu.h"
-#include "userprog/process.h"
+
+
 
 struct list frame_table;
 
@@ -180,12 +182,18 @@ bool vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED, bool u
     if (!not_present) return false;
     if (vm_claim_page(addr)) return true;
 
-    /* 프레임 할당에 실패했을 때, 주소의 범위가 유효한지 확인하고 스택을 키움 핀토스는 스택 사이즈 1MB로 제한함, 그 사이에 있어야 함 */
+    struct thread *curr = thread_current();
+    void *rsp_stack = is_kernel_vaddr(f->rsp) ? curr->rsp_stack : f->rsp;
+    /*
+        프레임 할당에 실패했을 때, 주소의 범위가 유효한지 확인하고 스택을 키움
+        핀토스는 스택 사이즈 1MB로 제한함, 그 사이에 있어야 함
+    */
     if (rsp_stack - 8 <= addr && USER_STACK - 0x100000 <= addr && addr <= USER_STACK) {
         vm_stack_growth(curr->stack_bottom - PGSIZE);
         return true;
     }
     return false;
+
 }
 
 /* Free the page.
@@ -272,8 +280,7 @@ bool supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED, s
 }
 
 /* Free the resource hold by the supplemental page table */
-void
-supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
+void supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	/* Destroy all the supplemental_page_table hold by thread and
 	 * writeback all the modified contents to the storage. */
 
@@ -311,4 +318,10 @@ bool page_less (struct hash_elem *elema, struct hash_elem *elemb, void *aux UNUS
     struct page *pageb = hash_entry(elemb, struct page, hash_elem);
 
     return pagea->va < pageb->va;
+}
+
+void spt_destroy (struct hash_elem *e, void *aux UNUSED) {
+    struct page *page = hash_entry(e, struct page, hash_elem);
+
+    free(page);
 }

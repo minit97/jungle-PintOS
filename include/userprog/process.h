@@ -2,6 +2,15 @@
 #define USERPROG_PROCESS_H
 
 #include "threads/thread.h"
+#include <stdbool.h>
+#include "filesys/off_t.h"
+
+// Project 3: Lazy Load
+struct container {
+    struct file *file;
+    off_t offset;
+    size_t read_bytes;
+};
 
 tid_t process_create_initd (const char *file_name);
 tid_t process_fork (const char *name, struct intr_frame *if_);
@@ -14,13 +23,5 @@ void argument_stack(char **argv, int argc, void **rsp);
 
 struct thread *get_child_process (int pid);
 void remove_child_process (struct thread *cp);
-
-
-// Project 3: Lazy Load
-struct container {
-    struct file *file;
-    off_t offset;
-    size_t read_bytes;
-};
 
 #endif /* userprog/process.h */
