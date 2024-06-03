@@ -15,4 +15,12 @@ void argument_stack(char **argv, int argc, void **rsp);
 struct thread *get_child_process (int pid);
 void remove_child_process (struct thread *cp);
 
+
+// Project 3: Lazy Load
+struct container {
+    struct file *file;
+    off_t offset;
+    size_t read_bytes;
+};
+
 #endif /* userprog/process.h */
