@@ -2,6 +2,7 @@
 #define VM_VM_H
 #include <stdbool.h>
 #include "threads/palloc.h"
+#include "lib/kernel/hash.h"
 
 enum vm_type {
 	/* page not initialized */
@@ -36,16 +37,15 @@ struct thread;
 
 #define VM_TYPE(type) ((type) & 7)
 
-/* The representation of "page".
- * This is kind of "parent class", which has four "child class"es, which are
- * uninit_page, file_page, anon_page, and page cache (project4).
- * DO NOT REMOVE/MODIFY PREDEFINED MEMBER OF THIS STRUCTURE. */
+// 가상 메모리의 페이지
 struct page {
-	const struct page_operations *operations;
-	void *va;              /* Address in terms of user space */
-	struct frame *frame;   /* Back reference for frame */
+	const struct page_operations *operations;       // page 마다 다른 함수를 실행시키기 위한 포인터 함수 (union 활용)
+	void *va;                                       // 유저 가상 주소
+	struct frame *frame;                            /* Back reference for frame */
 
 	/* Your implementation */
+    struct hash_elem hash_elem;
+    bool writable;                                  // true면 사용자 프로세스가 page를 수정할 수 있음, false면 read-only
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */
@@ -59,10 +59,11 @@ struct page {
 	};
 };
 
-/* The representation of "frame" */
+// 물리 메모리의 프레임
 struct frame {
-	void *kva;
-	struct page *page;
+	void *kva;              // 커널 가상 주소
+	struct page *page;      // 페이지
+    struct list_elem frame_elem;
 };
 
 /* The function table for page operations.
@@ -85,28 +86,29 @@ struct page_operations {
  * We don't want to force you to obey any specific design for this struct.
  * All designs up to you for this. */
 struct supplemental_page_table {
+    struct hash spt_hash;
 };
 
 #include "threads/thread.h"
 void supplemental_page_table_init (struct supplemental_page_table *spt);
-bool supplemental_page_table_copy (struct supplemental_page_table *dst,
-		struct supplemental_page_table *src);
+bool supplemental_page_table_copy (struct supplemental_page_table *dst, struct supplemental_page_table *src);
 void supplemental_page_table_kill (struct supplemental_page_table *spt);
-struct page *spt_find_page (struct supplemental_page_table *spt,
-		void *va);
+struct page *spt_find_page (struct supplemental_page_table *spt, void *va);
 bool spt_insert_page (struct supplemental_page_table *spt, struct page *page);
 void spt_remove_page (struct supplemental_page_table *spt, struct page *page);
 
 void vm_init (void);
-bool vm_try_handle_fault (struct intr_frame *f, void *addr, bool user,
-		bool write, bool not_present);
+bool vm_try_handle_fault (struct intr_frame *f, void *addr, bool user, bool write, bool not_present);
 
 #define vm_alloc_page(type, upage, writable) \
 	vm_alloc_page_with_initializer ((type), (upage), (writable), NULL, NULL)
-bool vm_alloc_page_with_initializer (enum vm_type type, void *upage,
-		bool writable, vm_initializer *init, void *aux);
+
+bool vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable, vm_initializer *init, void *aux);
 void vm_dealloc_page (struct page *page);
 bool vm_claim_page (void *va);
 enum vm_type page_get_type (struct page *page);
 
 #endif  /* VM_VM_H */
+
+unsigned page_hash (struct hash_elem *elem, void *aux UNUSED);
+bool page_less (struct hash_elem *elema, struct hash_elem *elemb, void *aux UNUSED);
