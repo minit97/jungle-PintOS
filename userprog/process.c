@@ -222,7 +222,7 @@ int process_exec (void *f_name) {   // start_process()
 
 	/* And then load the binary */
     // file_name : program name | &if_.rip : Function entry point | &if_.rsp : Stack top(user stack)
-    success = load (argv[0], &_if);
+    success = load (file_name, &_if);
 
     /**
     * 메모리 적재 완료 시 부모 프로세스 다시 진행 (세마포어 이용)
@@ -372,7 +372,7 @@ struct ELF64_PHDR {
 #define ELF ELF64_hdr
 #define Phdr ELF64_PHDR
 
-static bool setup_stack (struct intr_frame *if_);
+bool setup_stack (struct intr_frame *if_);
 static bool validate_segment (const struct Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		uint32_t read_bytes, uint32_t zero_bytes,
@@ -516,9 +516,9 @@ load (const char *file_name, struct intr_frame *if_) {
     /** PHM
      * 2. Save tokens on user stack of new process
      */
-    argument_stack(argv, argc, &_if.rsp);
-    _if.R.rdi = argc;               // argc: main함수가 받은 인자의 수
-    _if.R.rsi = _if.rsp + 8;        // argv: main 함수가 받은 각각의 인자들
+    argument_stack(argv, argc, &if_->rsp);
+    if_->R.rdi = argc;                // argc: main함수가 받은 인자의 수
+    if_->R.rsi = if_->rsp + 8;        // argv: main 함수가 받은 각각의 인자들
 
 	success = true;
 
@@ -636,7 +636,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage, uint32_t
 }
 
 /* Create a minimal stack by mapping a zeroed page at the USER_STACK */
-static bool setup_stack (struct intr_frame *if_) {
+bool setup_stack (struct intr_frame *if_) {
 	uint8_t *kpage;
 	bool success = false;
 
@@ -674,8 +674,7 @@ install_page (void *upage, void *kpage, bool writable) {
  * If you want to implement the function for only project 2, implement it on the
  * upper block. */
 
-static bool
-lazy_load_segment (struct page *page, void *aux) {
+static bool lazy_load_segment (struct page *page, void *aux) {
 	/* Load the segment from the file */
 	/* This called when the first page fault occurs on address VA. */
 	/* VA is available when calling this function. */
@@ -687,7 +686,8 @@ lazy_load_segment (struct page *page, void *aux) {
 	size_t read_bytes = container->read_bytes;
     size_t zero_bytes = PGSIZE - read_bytes;
 
-	file_seek(file, offsetof);
+    // Page load
+	file_seek(file, offsetof); // file의 위치를 offsetof으로 변경
     if (file_read(file, page->frame->kva, read_bytes) != (int)read_bytes) {
 		palloc_free_page(page->frame->kva);
         return false;
@@ -726,8 +726,8 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage, uint32_t
 		/* Set up aux to pass information to the lazy_load_segment. */
         struct container *container = (struct container *)malloc(sizeof(struct container));
 		container->file = file;
-		container->read_bytes = page_read_bytes;
 		container->offset = ofs;
+		container->read_bytes = page_read_bytes;
 
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage, writable, lazy_load_segment, container)) {
 			return false;
@@ -743,8 +743,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage, uint32_t
 }
 
 /* Create a PAGE of stack at the USER_STACK. Return true on success. */
-static bool
-setup_stack (struct intr_frame *if_) {
+bool setup_stack (struct intr_frame *if_) {
 	bool success = false;
 	void *stack_bottom = (void *) (((uint8_t *) USER_STACK) - PGSIZE);
 
@@ -754,7 +753,7 @@ setup_stack (struct intr_frame *if_) {
 	/* Your code goes here */
     struct thread *thread = thread_current();
 
-	// vm_alloc_page: type, upage, writable
+	// vm_alloc_page: type, upage, writable // stack 영역인 page MARK
 	if (vm_alloc_page(VM_ANON | VM_MARKER_0, stack_bottom, 1)) {
 		success = vm_claim_page(stack_bottom);
 
@@ -763,7 +762,6 @@ setup_stack (struct intr_frame *if_) {
             thread->stack_bottom = stack_bottom;
 		}
     }
-
 	return success;
 }
 #endif /* VM */

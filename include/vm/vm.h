@@ -8,8 +8,6 @@
 #include "lib/kernel/hash.h"
 #include "threads/vaddr.h"
 
-
-
 enum vm_type {
 	/* page not initialized */
 	VM_UNINIT = 0,
@@ -118,4 +116,4 @@ enum vm_type page_get_type (struct page *page);
 
 unsigned page_hash (struct hash_elem *elem, void *aux UNUSED);
 bool page_less (struct hash_elem *elema, struct hash_elem *elemb, void *aux UNUSED);
-void spt_destroy (struct hash_elem *e, void *aux UNUSED);
+void hash_page_destroy(struct hash_elem *e, void *aux);

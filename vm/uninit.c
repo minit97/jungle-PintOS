@@ -58,11 +58,7 @@ static bool uninit_initialize (struct page *page, void *kva) {
  * exit, which are never referenced during the execution.
  * PAGE will be freed by the caller. */
 static void uninit_destroy (struct page *page) {
-    // uninit page가 보유한 리소스를 해제하는 함수
-
-	struct uninit_page *uninit UNUSED = &page->uninit;
-	/* Fill this function.
-	 * If you don't have anything to do, just return. */
-    struct container *container = (struct container *)(uninit->aux);
-    file_close(&container->file);
+    struct uninit_page *uninit UNUSED = &page->uninit;
+    /* TODO: Fill this function.
+     * TODO: If you don't have anything to do, just return. */
 }
