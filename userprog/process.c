@@ -431,7 +431,7 @@ load (const char *file_name, struct intr_frame *if_) {
 		goto done;
 	}
     t->running = file;          // 스레드가 삭제될 때 파일을 닫을 수 있게 구조체에 파일을 저장해둔다.
-//    file_deny_write(file);      // 현재 실행중인 파일은 수정할 수 없게 막는다.
+    file_deny_write(file);      // 현재 실행중인 파일은 수정할 수 없게 막는다.
 
 	/* Read and verify executable header. */
     /**

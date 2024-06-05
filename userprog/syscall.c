@@ -70,6 +70,9 @@ syscall_handler (struct intr_frame *f UNUSED) {
 //    uint64_t arg4 = f->R.r10;
 //    uint64_t arg5 = f->R.r8;
 //    uint64_t arg6 = f->R.r9;
+//#ifdef VM
+//    thread_current()->rsp_stack = f->rsp;
+//#endif
 
     uint64_t system_call_num = f->R.rax;
     switch (system_call_num) {

@@ -185,7 +185,8 @@ bool vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED, bool u
         // user access인 경우 rsp는 유저 stack을 가리킨다.
         void *rsp = f->rsp;
         // kernel access인 경우 thread에서 rsp를 가져와야 한다.
-        if (!user) rsp = thread_current()->rsp;
+//        if (!user) rsp = thread_current()->rsp_stack;         // thread_current()->tf.rsp; 가 맞지 않나?
+        if (!user) rsp = thread_current()->tf.rsp;
 
         // 스택 확장으로 처리할 수 있는 폴트인 경우, vm_stack_growth를 호출
         if ((USER_STACK - (1 << 20) <= rsp - 8 && rsp - 8 == addr && addr <= USER_STACK) || (USER_STACK - (1 << 20) <= rsp && rsp <= addr && addr <= USER_STACK))
