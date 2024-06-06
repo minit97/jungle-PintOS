@@ -222,7 +222,9 @@ int process_exec (void *f_name) {   // start_process()
 
 	/* And then load the binary */
     // file_name : program name | &if_.rip : Function entry point | &if_.rsp : Stack top(user stack)
-    success = load (argv[0], &_if);
+	sema_down(&filesys_sema);
+    success = load (file_name, &_if);
+	sema_up(&filesys_sema);
 
     /**
     * 메모리 적재 완료 시 부모 프로세스 다시 진행 (세마포어 이용)
@@ -431,7 +433,7 @@ load (const char *file_name, struct intr_frame *if_) {
 		goto done;
 	}
     t->running = file;          // 스레드가 삭제될 때 파일을 닫을 수 있게 구조체에 파일을 저장해둔다.
-//    file_deny_write(file);      // 현재 실행중인 파일은 수정할 수 없게 막는다.
+
 
 	/* Read and verify executable header. */
     /**
@@ -516,10 +518,11 @@ load (const char *file_name, struct intr_frame *if_) {
     /** PHM
      * 2. Save tokens on user stack of new process
      */
-    argument_stack(argv, argc, &_if.rsp);
-    _if.R.rdi = argc;               // argc: main함수가 받은 인자의 수
-    _if.R.rsi = _if.rsp + 8;        // argv: main 함수가 받은 각각의 인자들
+    argument_stack(argv, argc, &if_->rsp);
+    if_->R.rdi = argc;               // argc: main함수가 받은 인자의 수
+    if_->R.rsi = if_->rsp + 8;        // argv: main 함수가 받은 각각의 인자들
 
+	file_deny_write(file);      // 현재 실행중인 파일은 수정할 수 없게 막는다.
 	success = true;
 
 done:
