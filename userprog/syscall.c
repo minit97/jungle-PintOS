@@ -49,8 +49,8 @@ syscall_init (void) {
 	 * mode stack. Therefore, we masked the FLAG_FL. */
 	write_msr(MSR_SYSCALL_MASK,
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
-    lock_init(&filesys_lock);
-    // sema_init(&global_sema, 1);
+//    lock_init(&filesys_lock);
+    sema_init(&filesys_sema, 1);
 }
 
 /* The main system call interface */
@@ -163,14 +163,11 @@ int exec (const char *cmd_line) {
      * 자식 프로세스의 프로그램이 적재될 때까지 대기
      * 프로그램 적재 실패 시 -1, 성공 시 자식 프로세스의 pid 리턴
      */
-    char *cmd_line_copy;
-    cmd_line_copy = palloc_get_page(0);
-    if (cmd_line_copy == NULL)
-        exit(-1);							  // 메모리 할당 실패 시 status -1로 종료한다.
-    strlcpy(cmd_line_copy, cmd_line, PGSIZE);           // cmd_line을 복사한다.
+    char *cmd_line_copy = palloc_get_page(0);
+    if (cmd_line_copy == NULL) exit(-1);			// 메모리 할당 실패 시 status -1로 종료한다.
+    strlcpy(cmd_line_copy, cmd_line, strlen(cmd_line) + 1);           // cmd_line을 복사한다.
 
     // 스레드의 이름을 변경하지 않고 바로 실행한다.
-    // sema_down(&thread_current()->load_sema);
     return process_exec(cmd_line_copy);
 }
 
@@ -215,21 +212,27 @@ int open (const char *file) {
      * returns fd
      */
     check_address(file);
+    sema_down(&filesys_sema);
 
     struct file *opened_file = filesys_open (file);
-    if (opened_file == NULL) return -1;
+    if (opened_file == NULL) {
+        sema_up(&filesys_sema);
+        return -1;
+    }
 
     struct thread *curr = thread_current();
     struct file **fdt = curr->fdt;
     while(curr->next_fd <= 130){
         if (fdt[curr->next_fd] == NULL) {
             fdt[curr->next_fd] = opened_file;
+            sema_up(&filesys_sema);
             return curr->next_fd;
         }
         curr->next_fd++;
     }
 
     file_close(opened_file);
+    sema_up(&filesys_sema);
     return -1;
 }
 
@@ -253,21 +256,29 @@ int read (int fd, void *buffer, unsigned size) {
      */
     check_address(buffer);
 
+    sema_down(&filesys_sema);
+
     int result;
     if (fd == STDIN_FILENO) {
         input_getc();
+        sema_up(&filesys_sema);
         return size;
     }
-    if (fd < 2 || fd > 130) return -1;
+    if (fd < 2 || fd > 130) {
+        sema_up(&filesys_sema);
+        return -1;
+    }
 
     struct thread *curr = thread_current();
     struct file **fdt = curr->fdt;
     struct file *file = fdt[fd];
-    if (file == NULL) return -1;
+    if (file == NULL) {
+        sema_up(&filesys_sema);
+        return -1;
+    }
 
-    lock_acquire(&filesys_lock);
     result = file_read(file, buffer, size);
-    lock_release(&filesys_lock);
+    sema_up(&filesys_sema);
 
     return result;
 }
@@ -280,13 +291,18 @@ int write (int fd, const void *buffer, unsigned size) {
      * 3. others : file find by fd and call file_write
      */
     check_address(buffer);
+
+    sema_down(&filesys_sema);
+
     int result;
     if (fd == STDOUT_FILENO) {
         putbuf(buffer, size);
+        sema_up(&filesys_sema);
         return size;
     }
 
     if (fd < 2 || fd > 130) {
+        sema_up(&filesys_sema);
         return -1;
     }
 
@@ -294,12 +310,12 @@ int write (int fd, const void *buffer, unsigned size) {
     struct file **fdt = curr->fdt;
     struct file *file = fdt[fd];
     if (file == NULL) {
+        sema_up(&filesys_sema);
         return -1;
     }
 
-    lock_acquire(&filesys_lock);
     result = file_write(file, buffer, size);
-    lock_release(&filesys_lock);
+    sema_up(&filesys_sema);
 
     return result;
 }
@@ -359,8 +375,8 @@ void check_address(void *addr) {
     if (!is_user_vaddr(addr))
         exit(-1);
     // 해당 페이지맵은 커널 가상 주소에 대한 매핑을 가지고 있지만, 사용 주소에 대한 매핑은 없다.
-    if (pml4_get_page(thread_current()->pml4, addr) == NULL)
-        exit(-1);
+//    if (pml4_get_page(thread_current()->pml4, addr) == NULL)
+//        exit(-1);
 }
 
 /**
@@ -379,7 +395,7 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
     if (found_file == NULL) return NULL;
     if (file_length(found_file) == 0 || (int)length <= 0) return NULL;              // mmap 호출은 fd로 열린 파일의 길이가 0 바이트 경우 실패할 수 있다.
 
-    return do_mmap(addr, length, writable, f, offset); // 파일이 매핑된 가상 주소 반환
+    return do_mmap(addr, length, writable, found_file, offset); // 파일이 매핑된 가상 주소 반환
 }
 
 void munmap (void *addr) {

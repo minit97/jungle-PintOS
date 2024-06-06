@@ -82,8 +82,7 @@ initd (void *f_name) {
 
 /* Clones the current process as `name`. Returns the new process's thread id, or
  * TID_ERROR if the thread cannot be created. */
-tid_t
-process_fork (const char *name, struct intr_frame *if_) {
+tid_t process_fork (const char *name, struct intr_frame *if_) {
 	/* Clone current thread to new thread.*/
     struct thread *cur = thread_current();
     memcpy(&cur->parent_if, if_, sizeof(struct intr_frame));
@@ -148,18 +147,18 @@ __do_fork (void *aux) {
     }
 
     current->next_fd = parent->next_fd;
-    sema_up(&current->load_sema);   // 로드가 완료될 때까지 기다리고 있던 부모 대기 해제
-
     process_init ();
+
+    sema_up(&current->load_sema);   // 로드가 완료될 때까지 기다리고 있던 부모 대기 해제
 
     /* Finally, switch to the newly created process. */
     if (succ)
         do_iret (&if_);
     error:
-        current->exit_status = TID_ERROR;
+//        current->exit_status = TID_ERROR;
         sema_up(&current->load_sema);
-        exit(TID_ERROR);
-//        thread_exit ();
+//        exit(TID_ERROR);
+        thread_exit ();
 }
 
 #ifndef VM
@@ -222,7 +221,9 @@ int process_exec (void *f_name) {   // start_process()
 
 	/* And then load the binary */
     // file_name : program name | &if_.rip : Function entry point | &if_.rsp : Stack top(user stack)
+    sema_down(&filesys_sema);
     success = load (file_name, &_if);
+    sema_up(&filesys_sema);
 
     /**
     * 메모리 적재 완료 시 부모 프로세스 다시 진행 (세마포어 이용)
@@ -380,8 +381,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage, uint32_t
  * Stores the executable's entry point into *RIP                            * 실행 파일의 진입 지점을 *RIP에 저장하고
  * and its initial stack pointer into *RSP.                                 * 초기 스택 포인터를 *RSP에 저장합니다.
  * Returns true if successful, false otherwise.                             * 성공하면 true를 반환하고, 그렇지 않으면 false를 반환합니다. */
-static bool
-load (const char *file_name, struct intr_frame *if_) {
+static bool load (const char *file_name, struct intr_frame *if_) {
     /* Load a ELF file
      * - Create page table (2 level paging)
      * - Open the file, read the ELF header
@@ -429,7 +429,7 @@ load (const char *file_name, struct intr_frame *if_) {
 		goto done;
 	}
     t->running = file;          // 스레드가 삭제될 때 파일을 닫을 수 있게 구조체에 파일을 저장해둔다.
-    file_deny_write(file);      // 현재 실행중인 파일은 수정할 수 없게 막는다.
+
 
 	/* Read and verify executable header. */
     /**
@@ -518,6 +518,7 @@ load (const char *file_name, struct intr_frame *if_) {
     if_->R.rdi = argc;                // argc: main함수가 받은 인자의 수
     if_->R.rsi = if_->rsp + 8;        // argv: main 함수가 받은 각각의 인자들
 
+    file_deny_write(file);            // 현재 실행중인 파일은 수정할 수 없게 막는다.
 	success = true;
 
 done:

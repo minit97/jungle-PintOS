@@ -25,7 +25,7 @@ void close (int fd);
 void check_address(void *addr);
 
 struct lock filesys_lock;
-//struct semaphore global_sema;
+struct semaphore filesys_sema;
 
 // project3
 struct file *find_file_by_fd (int fd);
