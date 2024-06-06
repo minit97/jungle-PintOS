@@ -30,7 +30,7 @@ bool file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
     // page struct의 일부 정보(such as 메모리가 백업되는 파일과 관련된 정보)를 업데이트할 수도 있습니다.
     struct container *container = (struct container *)page->uninit.aux;
     file_page->file = container->file;
-    file_page->ofs = container->offset;
+    file_page->offset = container->offset;
     file_page->read_bytes = container->read_bytes;
 }
 
@@ -50,7 +50,7 @@ static void file_backed_destroy (struct page *page) {
 	struct file_page *file_page UNUSED = &page->file;
 
     if (pml4_is_dirty(thread_current()->pml4, page->va)) {
-        file_write_at(file_page->file, page->va, file_page->read_bytes, file_page->ofs);
+        file_write_at(file_page->file, page->va, file_page->read_bytes, file_page->offset);
         pml4_set_dirty(thread_current()->pml4, page->va, 0);
     }
     pml4_clear_page(thread_current()->pml4, page->va);
@@ -79,7 +79,7 @@ void *do_mmap (void *addr, size_t length, int writable, struct file *file, off_t
 
         struct container *container = (struct container *)malloc(sizeof(struct container));
         container->file = file;
-        container->offset = ofs;
+        container->offset = offset;
         container->read_bytes = page_read_bytes;
 
         // vm_alloc_page_with_initializer를 호출하여 대기 중인 객체를 생성합니다.

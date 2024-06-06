@@ -23,6 +23,7 @@
 void syscall_entry (void);
 void syscall_handler (struct intr_frame *);
 int kernel_fork (const char *thread_name, struct intr_frame *f);
+void *mmap (void *addr, size_t length, int writable, int fd, off_t offset);
 
 /* System call.
  *
@@ -367,7 +368,7 @@ void check_address(void *addr) {
 */
 // fd로 열린 파일을 offset 바이트로부터 프로세스의 가상 주소 공간의 addr에 length 바이트만큼 매핑한다.
 void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
-    if (addr == NULL ||  || addr != pg_round_down(addr)) return NULL;               // 주소값이 NULL or 시작 주소값이 아니라면
+    if (addr == NULL || addr != pg_round_down(addr)) return NULL;               // 주소값이 NULL or 시작 주소값이 아니라면
     if (is_kernel_vaddr(addr) || is_kernel_vaddr(addr + length)) return NULL;       // 주소값이 커널 영역 or 길이가 저장값이 아니라서 유저 영역을 벗어난다면
     if (offset != pg_round_down(offset)) return NULL;                               // offset 값이 페이지의 시작점이 아니라면
 
@@ -391,5 +392,5 @@ struct file *find_file_by_fd (int fd) {
     }
 
     struct thread *curr = thread_current();
-    return curr->fd_table[fd];
+    return curr->fdt[fd];
 }

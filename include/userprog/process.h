@@ -1,8 +1,8 @@
 #ifndef USERPROG_PROCESS_H
 #define USERPROG_PROCESS_H
 
-#include "threads/thread.h"
 #include <stdbool.h>
+#include "threads/thread.h"
 #include "filesys/off_t.h"
 
 // Project 3: Lazy Load
@@ -23,4 +23,6 @@ void argument_stack(char **argv, int argc, void **rsp);
 
 struct thread *get_child_process (int pid);
 void remove_child_process (struct thread *cp);
+
+bool lazy_load_segment(struct page *page, void *aux);
 #endif /* userprog/process.h */

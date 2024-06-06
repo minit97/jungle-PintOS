@@ -269,9 +269,9 @@ bool supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED, s
         // 1-2) type이 file이면 (memory mapped files에서 추가)
         if (type == VM_FILE) {
             struct container *file_aux = malloc(sizeof(struct container));
-            container->file = parent_page->file.file;
-            container->offset = parent_page->file.offset;
-            container->read_bytes = parent_page->file.read_bytes;
+            file_aux->file = parent_page->file.file;
+            file_aux->offset = parent_page->file.offset;
+            file_aux->read_bytes = parent_page->file.read_bytes;
 
             if (!vm_alloc_page_with_initializer(type, upage, writable, NULL, file_aux))
                 return false;
