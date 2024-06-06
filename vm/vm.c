@@ -3,6 +3,7 @@
 #include "threads/malloc.h"
 #include "threads/vaddr.h"
 #include "threads/mmu.h"
+#include "userprog/process.h"
 #include "vm/vm.h"
 #include "vm/inspect.h"
 #include "vm/file.h"
@@ -257,11 +258,28 @@ bool supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED, s
         void *upage = parent_page->va;
         bool writable = parent_page->writable;
 
-        // 1) type이 uninit이면
+        // 1-1) type이 uninit이면
         if (type == VM_UNINIT) {
             vm_initializer *init = parent_page->uninit.init;
             void *aux = parent_page->uninit.aux;
             vm_alloc_page_with_initializer(VM_ANON, upage, writable, init, aux);
+            continue;
+        }
+
+        // 1-2) type이 file이면 (memory mapped files에서 추가)
+        if (type == VM_FILE) {
+            struct container *file_aux = malloc(sizeof(struct container));
+            container->file = parent_page->file.file;
+            container->offset = parent_page->file.offset;
+            container->read_bytes = parent_page->file.read_bytes;
+
+            if (!vm_alloc_page_with_initializer(type, upage, writable, NULL, file_aux))
+                return false;
+
+            struct page *file_page = spt_find_page(dst, upage);
+            file_backed_initializer(file_page, type, NULL);
+            file_page->frame = parent_page->frame;
+            pml4_set_page(thread_current()->pml4, file_page->va, parent_page->frame->kva, parent_page->writable);
             continue;
         }
 

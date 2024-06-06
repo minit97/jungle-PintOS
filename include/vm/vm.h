@@ -50,6 +50,7 @@ struct page {
 	/* Your implementation */
     struct hash_elem hash_elem;
     bool writable;                                  // true면 사용자 프로세스가 page를 수정할 수 있음, false면 read-only
+    int mapped_page_count;                          // 매핑된 페이지 갯수, 해제 시 사용
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */

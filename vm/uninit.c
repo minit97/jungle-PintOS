@@ -59,6 +59,10 @@ static bool uninit_initialize (struct page *page, void *kva) {
  * PAGE will be freed by the caller. */
 static void uninit_destroy (struct page *page) {
     struct uninit_page *uninit UNUSED = &page->uninit;
-    /* TODO: Fill this function.
-     * TODO: If you don't have anything to do, just return. */
+    /* Fill this function. If you don't have anything to do, just return. */
+
+    // 이 과정이 필요할까? : uninit page 형태로 남아있는게 있을까? 사실 load_segment할 때도 VM_ANON로 초기화하는데?
+    // supplemental_page_table_copy 여기 초기화하는거 보니 VM_UNINIT가 사용되긴함... 더 찾아봐야할듯
+//    struct container *container = (struct container *)(uninit->aux);
+//    file_close(&container->file);
 }

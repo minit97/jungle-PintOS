@@ -53,9 +53,7 @@ syscall_init (void) {
 }
 
 /* The main system call interface */
-void
-syscall_handler (struct intr_frame *f UNUSED) {
-	// TODO: Your implementation goes here.
+void syscall_handler (struct intr_frame *f UNUSED) {
     /**
      * 1. Make system call handler call system call using system call number
      * 2. Check validation of the pointers in parameter list
@@ -117,6 +115,15 @@ syscall_handler (struct intr_frame *f UNUSED) {
             break;
         case SYS_CLOSE:
             close(f->R.rdi);
+            break;
+        /**
+         * project 3
+         */
+        case SYS_MMAP:
+            f->R.rax = mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
+            break;
+        case SYS_MUNMAP:
+            munmap(f->R.rdi);
             break;
         default:
             thread_exit ();
@@ -353,4 +360,36 @@ void check_address(void *addr) {
     // 해당 페이지맵은 커널 가상 주소에 대한 매핑을 가지고 있지만, 사용 주소에 대한 매핑은 없다.
     if (pml4_get_page(thread_current()->pml4, addr) == NULL)
         exit(-1);
+}
+
+/**
+* project3
+*/
+// fd로 열린 파일을 offset 바이트로부터 프로세스의 가상 주소 공간의 addr에 length 바이트만큼 매핑한다.
+void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
+    if (addr == NULL ||  || addr != pg_round_down(addr)) return NULL;               // 주소값이 NULL or 시작 주소값이 아니라면
+    if (is_kernel_vaddr(addr) || is_kernel_vaddr(addr + length)) return NULL;       // 주소값이 커널 영역 or 길이가 저장값이 아니라서 유저 영역을 벗어난다면
+    if (offset != pg_round_down(offset)) return NULL;                               // offset 값이 페이지의 시작점이 아니라면
+
+    if (spt_find_page(&thread_current()->spt, addr)) return NULL;                   // addr에 할당된 페이지가 이미 존재하는 경우
+    if (fd == 0 || fd == 1) return NULL;                                            // 콘솔 입력 및  출력을 나타내는 파일 디스크립터는 매핑할 수 없다.
+
+    struct file *found_file = find_file_by_fd(fd);
+    if (found_file == NULL) return NULL;
+    if (file_length(found_file) == 0 || (int)length <= 0) return NULL;              // mmap 호출은 fd로 열린 파일의 길이가 0 바이트 경우 실패할 수 있다.
+
+    return do_mmap(addr, length, writable, f, offset); // 파일이 매핑된 가상 주소 반환
+}
+
+void munmap (void *addr) {
+    do_munmap(addr);
+}
+
+struct file *find_file_by_fd (int fd) {
+    if (fd < 0 || fd > 130){
+        return NULL;
+    }
+
+    struct thread *curr = thread_current();
+    return curr->fd_table[fd];
 }
