@@ -32,6 +32,7 @@ bool file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
     file_page->file = container->file;
     file_page->offset = container->offset;
     file_page->read_bytes = container->read_bytes;
+    return true;
 }
 
 /* Swap in the page by read contents from the file. */
@@ -58,14 +59,14 @@ static void file_backed_destroy (struct page *page) {
 
 /* Do the mmap */
 void *do_mmap (void *addr, size_t length, int writable, struct file *file, off_t offset) {
-    struct file *f = file_reopen(file);                     // 이 파일에 대한 새로운 파일 디스크립터를 얻기에 다른 매핑에 영향을 주거나 영향을 받지않게 독립적이다.
+    struct file *reopened_file = file_reopen(file);                     // 이 파일에 대한 새로운 파일 디스크립터를 얻기에 다른 매핑에 영향을 주거나 영향을 받지않게 독립적이다.
     void *start_addr = addr;                                // 매핑 성공 시 파일이 매핑된 가상 주소 반환하는 데 사용
 
     // 이 매핑을 위해 사용한 총 페이지 수
     int total_page_count = length % PGSIZE ? length / PGSIZE + 1 : length / PGSIZE;
 
 
-    size_t read_bytes = file_length(f) < length ? file_length(f) : length;
+    size_t read_bytes = file_length(reopened_file) < length ? file_length(reopened_file) : length;
     size_t zero_bytes = PGSIZE - read_bytes % PGSIZE;
 
     ASSERT((read_bytes + zero_bytes) % PGSIZE == 0);
@@ -78,7 +79,7 @@ void *do_mmap (void *addr, size_t length, int writable, struct file *file, off_t
         size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
         struct container *container = (struct container *)malloc(sizeof(struct container));
-        container->file = file;
+        container->file = reopened_file;
         container->offset = offset;
         container->read_bytes = page_read_bytes;
 

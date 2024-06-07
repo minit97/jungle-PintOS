@@ -104,8 +104,7 @@ bool spt_insert_page (struct supplemental_page_table *spt UNUSED, struct page *p
     return hash_insert(&spt->spt_hash, &page->hash_elem) == NULL ? true : false; // 존재하지 않을 경우에만 삽입
 }
 
-void
-spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
+void spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
 	vm_dealloc_page (page);
 	return true;
 }
@@ -186,8 +185,7 @@ bool vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED, bool u
         // user access인 경우 rsp는 유저 stack을 가리킨다.
         void *rsp = f->rsp;
         // kernel access인 경우 thread에서 rsp를 가져와야 한다.
-//        if (!user) rsp = thread_current()->rsp_stack;         // thread_current()->tf.rsp; 가 맞지 않나?
-        if (!user) rsp = thread_current()->tf.rsp;
+        if (!user) rsp = thread_current()->rsp_stack;
 
         // 스택 확장으로 처리할 수 있는 폴트인 경우, vm_stack_growth를 호출
         if ((USER_STACK - (1 << 20) <= rsp - 8 && rsp - 8 == addr && addr <= USER_STACK) || (USER_STACK - (1 << 20) <= rsp && rsp <= addr && addr <= USER_STACK))

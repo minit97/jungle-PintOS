@@ -294,8 +294,8 @@ lock_release (struct lock *lock) {
         }
 
         // 다음 락 홀더 설정
-        struct thread *next_lock_holder = list_entry(list_front(&lock->semaphore.waiters), struct thread, elem);
-        next_lock_holder->wait_on_lock = NULL;
+//        struct thread *next_lock_holder = list_entry(list_front(&lock->semaphore.waiters), struct thread, elem);
+//        next_lock_holder->wait_on_lock = NULL;
     }
 
     lock->holder = NULL;

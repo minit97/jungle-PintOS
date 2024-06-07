@@ -753,11 +753,7 @@ bool setup_stack (struct intr_frame *if_) {
 	// vm_alloc_page: type, upage, writable // stack 영역인 page MARK
 	if (vm_alloc_page(VM_ANON | VM_MARKER_0, stack_bottom, 1)) {
 		success = vm_claim_page(stack_bottom);
-
-		if (success) {
-			if_->rsp = USER_STACK;
-            thread->stack_bottom = stack_bottom;
-		}
+		if (success) if_->rsp = USER_STACK;
     }
 	return success;
 }

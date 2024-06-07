@@ -18,6 +18,7 @@
 #include "userprog/process.h"
 #include "devices/input.h"
 #include "kernel/stdio.h"           // putbuf
+#include "vm/file.h"
 
 
 void syscall_entry (void);
@@ -69,9 +70,7 @@ void syscall_handler (struct intr_frame *f UNUSED) {
 //    uint64_t arg4 = f->R.r10;
 //    uint64_t arg5 = f->R.r8;
 //    uint64_t arg6 = f->R.r9;
-//#ifdef VM
-//    thread_current()->rsp_stack = f->rsp;
-//#endif
+    thread_current()->rsp_stack = f->rsp;
 
     uint64_t system_call_num = f->R.rax;
     switch (system_call_num) {
@@ -198,9 +197,8 @@ int wait (int pid) {
  * file syscall
  */
 bool create (const char *file, unsigned initial_size) {
-    check_address(file);
-
     sema_down(&filesys_sema);
+    check_address(file);
     bool result = filesys_create(file, initial_size);
     sema_up(&filesys_sema);
 
@@ -279,6 +277,13 @@ int read (int fd, void *buffer, unsigned size) {
     if (file == NULL) {
         sema_up(&filesys_sema);
         return -1;
+    }
+
+    // project3 : pt-write-code2 test
+    struct page *page = spt_find_page(&thread_current()->spt, buffer);
+    if (page && !page->writable) {
+        sema_up(&filesys_sema);
+        exit(-1);
     }
 
     int result = file_read(file, buffer, size);
@@ -388,7 +393,7 @@ void check_address(void *addr) {
 */
 // fd로 열린 파일을 offset 바이트로부터 프로세스의 가상 주소 공간의 addr에 length 바이트만큼 매핑한다.
 void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
-    if (addr == NULL || addr != pg_round_down(addr)) return NULL;               // 주소값이 NULL or 시작 주소값이 아니라면
+    if (addr == NULL || addr != pg_round_down(addr)) return NULL;                   // 주소값이 NULL or 시작 주소값이 아니라면
     if (is_kernel_vaddr(addr) || is_kernel_vaddr(addr + length)) return NULL;       // 주소값이 커널 영역 or 길이가 저장값이 아니라서 유저 영역을 벗어난다면
     if (offset != pg_round_down(offset)) return NULL;                               // offset 값이 페이지의 시작점이 아니라면
 
@@ -399,7 +404,7 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
     if (found_file == NULL) return NULL;
     if (file_length(found_file) == 0 || (int)length <= 0) return NULL;              // mmap 호출은 fd로 열린 파일의 길이가 0 바이트 경우 실패할 수 있다.
 
-    return do_mmap(addr, length, writable, found_file, offset); // 파일이 매핑된 가상 주소 반환
+    return do_mmap(addr, length, writable, found_file, offset);                     // 파일이 매핑된 가상 주소 반환
 }
 
 void munmap (void *addr) {
