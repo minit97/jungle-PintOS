@@ -704,7 +704,7 @@ void check_ready_priority(void) {
     if (thread_current() == idle_thread) return;
     if (list_empty(&ready_list)) return;
 
-    list_sort(&ready_list, compare_priority, NULL);
+    // list_sort(&ready_list, compare_priority, NULL);  // mlfqs
     struct thread *curr = thread_current();
     struct thread *next = list_entry(list_front(&ready_list), struct thread, elem);
     if (curr->priority < next->priority) {

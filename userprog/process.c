@@ -264,8 +264,7 @@ process_wait (tid_t child_tid UNUSED) {     // The OS quits without waiting for 
 }
 
 /* Exit the process. This function is called by thread_exit (). */
-void
-process_exit (void) {
+void process_exit (void) {
 	struct thread *curr = thread_current ();
 	/* TODO: Your code goes here.
 	 * TODO: Implement process termination message (see
@@ -274,7 +273,7 @@ process_exit (void) {
     for (int i = 2; i <= 130; i++)
         close(i);
 
-    palloc_free_multiple(curr->fdt, 3);
+    palloc_free_multiple(curr->fdt, 2);
     file_close(curr->running);      // 현재 실행 중인 파일을 닫는다.
     process_cleanup ();
 
@@ -429,7 +428,7 @@ static bool load (const char *file_name, struct intr_frame *if_) {
 		goto done;
 	}
     t->running = file;          // 스레드가 삭제될 때 파일을 닫을 수 있게 구조체에 파일을 저장해둔다.
-
+    file_deny_write(file);            // 현재 실행중인 파일은 수정할 수 없게 막는다.
 
 	/* Read and verify executable header. */
     /**
@@ -518,7 +517,6 @@ static bool load (const char *file_name, struct intr_frame *if_) {
     if_->R.rdi = argc;                // argc: main함수가 받은 인자의 수
     if_->R.rsi = if_->rsp + 8;        // argv: main 함수가 받은 각각의 인자들
 
-    file_deny_write(file);            // 현재 실행중인 파일은 수정할 수 없게 막는다.
 	success = true;
 
 done:

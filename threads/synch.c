@@ -212,9 +212,7 @@ lock_acquire (struct lock *lock) {
     }
 
     struct thread *curr = thread_current();
-    if (lock->holder == NULL) {
-        lock->holder = curr;
-    } else {
+    if (lock->holder != NULL) {
         // nested donation
         curr->wait_on_lock = lock;
         while(curr->wait_on_lock != NULL) {
@@ -229,6 +227,8 @@ lock_acquire (struct lock *lock) {
         list_insert_ordered(&lock->holder->donations, &thread_current()->d_elem, compare_donation_priority, NULL);
     }
     sema_down (&lock->semaphore);
+    curr->wait_on_lock = NULL;
+    lock->holder = thread_current();
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -269,9 +269,7 @@ lock_release (struct lock *lock) {
         return;
     }
 
-    if (list_empty(&lock->semaphore.waiters)) {
-        lock->holder = NULL;
-    } else {
+    if (!list_empty(&lock->semaphore.waiters)) {
         // multiple donation
         struct thread *prev_lock_holder = lock->holder;
 
@@ -298,9 +296,10 @@ lock_release (struct lock *lock) {
         // 다음 락 홀더 설정
         struct thread *next_lock_holder = list_entry(list_front(&lock->semaphore.waiters), struct thread, elem);
         next_lock_holder->wait_on_lock = NULL;
-        lock->holder = next_lock_holder;
     }
-	sema_up (&lock->semaphore);
+
+    lock->holder = NULL;
+    sema_up (&lock->semaphore);
 }
 
 /* Returns true if the current thread holds LOCK, false

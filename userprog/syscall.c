@@ -49,7 +49,7 @@ syscall_init (void) {
 	 * mode stack. Therefore, we masked the FLAG_FL. */
 	write_msr(MSR_SYSCALL_MASK,
 			FLAG_IF | FLAG_TF | FLAG_DF | FLAG_IOPL | FLAG_AC | FLAG_NT);
-//    lock_init(&filesys_lock);
+
     sema_init(&filesys_sema, 1);
 }
 
@@ -165,7 +165,7 @@ int exec (const char *cmd_line) {
      */
     char *cmd_line_copy = palloc_get_page(0);
     if (cmd_line_copy == NULL) exit(-1);			// 메모리 할당 실패 시 status -1로 종료한다.
-    strlcpy(cmd_line_copy, cmd_line, strlen(cmd_line) + 1);           // cmd_line을 복사한다.
+    strlcpy(cmd_line_copy, cmd_line, PGSIZE);           // cmd_line을 복사한다.
 
     // 스레드의 이름을 변경하지 않고 바로 실행한다.
     return process_exec(cmd_line_copy);
@@ -199,7 +199,12 @@ int wait (int pid) {
  */
 bool create (const char *file, unsigned initial_size) {
     check_address(file);
-    return filesys_create(file, initial_size);
+
+    sema_down(&filesys_sema);
+    bool result = filesys_create(file, initial_size);
+    sema_up(&filesys_sema);
+
+    return result;
 }
 
 bool remove (const char *file) {
@@ -258,7 +263,6 @@ int read (int fd, void *buffer, unsigned size) {
 
     sema_down(&filesys_sema);
 
-    int result;
     if (fd == STDIN_FILENO) {
         input_getc();
         sema_up(&filesys_sema);
@@ -277,7 +281,7 @@ int read (int fd, void *buffer, unsigned size) {
         return -1;
     }
 
-    result = file_read(file, buffer, size);
+    int result = file_read(file, buffer, size);
     sema_up(&filesys_sema);
 
     return result;
