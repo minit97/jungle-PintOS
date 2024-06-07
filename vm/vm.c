@@ -12,6 +12,7 @@
 
 
 struct list frame_table;
+struct list_elem *start;
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
@@ -24,8 +25,9 @@ vm_init (void) {
 #endif
 	register_inspect_intr ();
 	/* DO NOT MODIFY UPPER LINES. */
-	/* TODO: Your code goes here. */
+
     list_init(&frame_table);
+    start = list_begin(&frame_table);
 }
 
 /* Get the type of the page. This function is useful if you want to know the
@@ -110,22 +112,43 @@ void spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
 }
 
 /* Get the struct frame, that will be evicted. */
-static struct frame *
-vm_get_victim (void) {
-	struct frame *victim = NULL;
-	 /* TODO: The policy for eviction is up to you. */
+static struct frame *vm_get_victim (void) {
+    struct frame *victim = NULL;
+    /* FIFO eviction policy */
+    // victim = list_entry(list_pop_front (&frame_table), struct frame, frame_elem);
+    // // swap-file, swap-anon 실패
+    struct thread *curr = thread_current();
+    struct list_elem *e = start;
 
-	return victim;
+    /*  */
+    for (start = e; start != list_end(&frame_table); start = list_next(start))
+    {
+        victim = list_entry(start, struct frame, frame_elem);
+        if (pml4_is_accessed(curr->pml4, victim->page->va))
+            pml4_set_accessed(curr->pml4, victim->page->va, 0);
+        else
+            return victim;
+    }
+
+    for (start = list_begin(&frame_table); start != e; start = list_next(start))
+    {
+        victim = list_entry(start, struct frame, frame_elem);
+        if (pml4_is_accessed(curr->pml4, victim->page->va))
+            pml4_set_accessed(curr->pml4, victim->page->va, 0);
+        else
+            return victim;
+    }
+    return victim;
 }
 
 /* Evict one page and return the corresponding frame.
  * Return NULL on error.*/
-static struct frame *
-vm_evict_frame (void) {
-	struct frame *victim UNUSED = vm_get_victim ();
-	/* TODO: swap out the victim and return the evicted frame. */
+static struct frame *vm_evict_frame (void) {
+    struct frame *victim UNUSED = vm_get_victim();
+    /* TODO: swap out the victim and return the evicted frame. */
+    swap_out(victim->page);
 
-	return NULL;
+    return victim;
 }
 
 /* palloc() and get frame. If there is no available page, evict the page
