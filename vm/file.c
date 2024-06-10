@@ -80,6 +80,7 @@ static bool file_backed_swap_out (struct page *page) {
 
     /* present bit을 0으로 만든다. */
     pml4_clear_page(thread_current()->pml4, page->va);
+    return true;
 }
 
 /* Destory the file backed page. PAGE will be freed by the caller. */
