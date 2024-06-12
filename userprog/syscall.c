@@ -197,8 +197,8 @@ int wait (int pid) {
  * file syscall
  */
 bool create (const char *file, unsigned initial_size) {
-    sema_down(&filesys_sema);
     check_address(file);
+    sema_down(&filesys_sema);
     bool result = filesys_create(file, initial_size);
     sema_up(&filesys_sema);
 

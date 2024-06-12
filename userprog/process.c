@@ -257,7 +257,7 @@ process_wait (tid_t child_tid UNUSED) {     // The OS quits without waiting for 
     sema_down(&child->wait_sema);
     list_remove(&child->child_elem);
 
-    // 자식 종료 후 스케줄링을 위해 자식에 signal 전달
+    // 자식 thread가 살아있을 때 list_remove를 하기 위해, 죽은 다음에 list_remove를 하면 에러 발생!
     sema_up(&child->exit_sema);
 
     return child->exit_status;
